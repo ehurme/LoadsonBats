@@ -1,0 +1,183 @@
+---
+title: "ACC Spectrogram"
+output: html_document
+date: "2022-12-21"
+---
+
+# load libraries
+```{r}
+library(pacman)
+p_load(tidyverse, magrittr, dplyr, plyr, data.table,
+       lubridate, janitor, ggplot2, zoo, roll,
+       mclust,
+       av, seewave, tuneR, phonTools, soundgen, # acoustic analysis
+       foreach, doParallel # parallel processing
+       )
+op <- options(digits.secs=3)
+```
+
+# do parallel
+```{r}
+cores=detectCores()
+cl <- makeCluster(cores[1]-10) #not to overload your computer
+registerDoParallel(cl)
+```
+
+
+# create wave
+## P. hastatus
+
+```{r}
+bats <- list.dirs("./../../../ownCloud/Firetail/Model_7CE02AF_main")
+k = 2
+for(k in 2:length(bats)){
+  files <- list.files(bats[k], full.names = TRUE, 
+                    pattern = "*-annotated-bursts-gps.csv")
+  df <- fread(files[1])
+  # df$timestamp %>% ymd_hms %>% date %>% table
+  dates <- df$timestamp %>% ymd_hms %>% date %>% unique
+  j = 3
+  for(j in 1:length(dates)){
+   d <- df[which(date(ymd_hms(df$timestamp)) == dates[j]),]
+   i = 100
+    if(nrow(d) > 1000){
+      db <- foreach(i = 1:nrow(d), .combine = rbind) %dopar% {
+        require(magrittr)
+        temp <- {}
+        x <- NA
+        y <- NA
+        z <- NA
+        time <- NA
+        burst <- NA
+        temp <- d$eobs_accelerations_raw[i] %>% strsplit(" ") %>% 
+          unlist %>% 
+          as.numeric
+        if(length(temp) > 0){
+          x <- temp[seq(1, length(temp), 3)]
+          y <- temp[seq(2, length(temp), 3)]
+          z <- temp[seq(3, length(temp), 3)]
+          temp_time <- seq.POSIXt(from = d$timestamp[i], 
+                                   to = d$timestamp[i]+length(temp)/25/3, 
+                                   length.out = length(temp)/3)
+          time <- format(temp_time, "%Y-%m-%d %H:%M:%OS2") %>% as.character
+          burst <- rep(i, length(temp))
+        }
+        temp <- data.frame(x,y,z,time,burst)
+      }
+    db <- na.omit(db)
+    png(filename = paste0(bats[k],"/",dates[j],"_z_by_time.png"))
+      plot(ymd_hms(db$time), db$z, type = "l", xlab = "time", ylab = "Z")
+      points(d$timestamp[which(d$commuting != "")], rep(0, length(which(d$commuting != ""))), col = 2, pch = 16, cex = 0.5)
+    dev.off()
+    
+    w <- Wave(left = db$z, samp.rate = 25, bit = 16)
+    plot(w)
+    spectro(w)
+    wf <- ffilter(w, f= 25, from = 5, to = 7, bandpass = TRUE)
+    png(filename = paste0(bats[k],"/",dates[j],"_wingbeatfreq.png"))
+      spectro(wf, f = 25, wl = 1024*4, ovlp = 75, fastdisp = TRUE)
+      par(new=TRUE)
+      pf <- dfreq(wf, f=25, wl = 1024*4, ovlp=50, threshold=20, type="l", col="red", lwd=2, xlab = "", ylab = "")  
+    dev.off()
+    
+    pf_var <- roll_var(pf[,2], width = 10)
+    hist(pf_var, breaks = 300)
+    
+    big <- 1000000
+    c <- Mclust((pf_var %>% na.omit)*big, G = 2)
+    # plot(c, what = "density")
+    thresh <- c$parameters$mean[1]/big + 2*sqrt(c$parameters$variance$sigmasq[1])/big
+    
+    abline(v = thresh, col = 2)
+    
+    plot(pf_var, col = (pf_var > thresh)+1)
+    
+    plot(pf, col = (pf_var < thresh)+1)
+    r <- rle(pf_var < thresh)
+    r$values      
+    
+    save(db,w,wf,pf, file = paste0(bats[k],"/",dates[j],"_wingbeatfreq.robj"))
+    }
+  }
+}
+
+
+```
+
+## M. vivesi
+```{r}
+bats <- list.files("../../../../Dropbox/VivesiACC/data/", recursive = FALSE, pattern = "*.csv", full.names = TRUE)
+k = 27
+for(k in 1:length(bats)){
+  df <- fread(bats[k])
+  # df$timestamp %>% ymd_hms %>% date %>% table
+  if(length(df$time) == 0){
+    df$time <- matlab2POS(df$ACCtime)
+  }
+  # png(filename = paste0(bats[k],"/",dates[j],"_z_by_time.png"))
+      plot(ymd_hms(df$time), df$ACCZ, type = "l")
+    # dev.off()
+    sample_rate <- ifelse(year(df$time[1]) == 2017, 40, 50)
+      
+    w <- Wave(left = df$ACCZ, samp.rate = sample_rate, bit = 16)
+    plot(w)
+    spectro(w, f = sample_rate, flim = c(0,0.015))
+    wf <- ffilter(w, f= sample_rate, from = 5, to = 10, bandpass = TRUE)
+    # png(filename = paste0(bats[k],"/",dates[j],"_wingbeatfreq.png"))
+      spectro(wf, f = sample_rate, wl = 1024*4, ovlp = 50)
+      par(new=TRUE)
+      pf <- dfreq(wf, f=sample_rate,wl = 1024*4, ovlp=50, threshold=20, 
+                  type="l", col="red", lwd=1, xlab = "", ylab = "")
+      
+      # pf[,2] %>% 
+      #   # rollmean(k = 100) %>% 
+      #   hist(breaks = 200)
+    # dev.off()  
+      
+    ## identify commutes
+    layout(1)
+    abs(df$ACCZ) %>% roll_var(width = 10000, na_restore = TRUE) %>% plot(type = "l")
+    abs(df$ACCZ) %>% rollmean(k = 10000, na.pad = TRUE) %>% plot(type = "l")
+    abs(df$ACCX) %>% rollmean(k = 10000, na.pad = TRUE) %>% plot(type = "l")
+    abs(df$ACCY) %>% rollmean(k = 10000, na.pad = TRUE) %>% plot(type = "l")
+    
+    # get wingbeat freq of each commute
+        
+    }
+    bat <- unlist(lapply(strsplit(bats[k], "_"), function(x) paste(x[3],x[4],sep="_")))  
+    df <- df[,c("ACCX", "ACCY", "ACCZ", "time")]
+    save(df,w,wf,pf,sample_rate, 
+     file = paste0("../../../../Dropbox/VivesiACC/data/", bat, "_wingbeatfreq.robj"))
+    }
+  }
+}
+
+
+
+
+print(df$ACCtime[1], digits = 21)
+matlab2POS(df$ACCtime[1])
+```
+
+# what is best spectrogram window length?
+```{r}
+sample_rate = 25
+spectro(wf, f = sample_rate, wl = 1024*1/2, ovlp = 75, fastdisp = TRUE)
+spectro(wf, f = sample_rate, wl = 1024*1, ovlp = 75, fastdisp = TRUE)
+spectro(wf, f = sample_rate, wl = 1024*2, ovlp = 75, fastdisp = TRUE)
+spectro(wf, f = sample_rate, wl = 1024*4, ovlp = 75, fastdisp = TRUE)
+spectro(wf, f = sample_rate, wl = 1024*8, ovlp = 75, fastdisp = TRUE)
+spectro(wf, f = sample_rate, wl = 1024*16, ovlp = 75, fastdisp = TRUE)
+
+```
+
+
+```{r}
+spectro(w, f = sample_rate, wl = 1024*1/2, ovlp = 75, fastdisp = TRUE)
+spectro(w, f = sample_rate, wl = 1024*1, ovlp = 75, fastdisp = TRUE)
+spectro(w, f = sample_rate, wl = 1024*2, ovlp = 75, fastdisp = TRUE)
+spectro(w, f = sample_rate, wl = 1024*4, ovlp = 75, fastdisp = TRUE)
+spectro(w, f = sample_rate, wl = 1024*8, ovlp = 75, fastdisp = TRUE)
+spectro(w, f = sample_rate, wl = 1024*16, ovlp = 75, fastdisp = TRUE)
+```
+
