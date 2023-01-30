@@ -2,13 +2,15 @@
 title: "ACC Spectrogram"
 output: html_document
 date: "2022-12-21"
+editor_options: 
+  chunk_output_type: console
 ---
 
 # load libraries
 ```{r}
 library(pacman)
 p_load(tidyverse, magrittr, dplyr, plyr, data.table,
-       lubridate, janitor, ggplot2, zoo, roll,
+       lubridate, janitor, ggplot2, zoo, roll, R.utils,
        mclust,
        av, seewave, tuneR, phonTools, soundgen, # acoustic analysis
        foreach, doParallel # parallel processing
@@ -30,15 +32,20 @@ registerDoParallel(cl)
 ```{r}
 bats <- list.dirs("./../../../ownCloud/Firetail/Model_7CE02AF_main")
 k = 2
-for(k in 2:length(bats)){
+sunset <- 18
+sunrise <- 6
+panama_offset <- 5*3600
+sampling_rate = 25
+for(k in 3:length(bats)){
   files <- list.files(bats[k], full.names = TRUE, 
                     pattern = "*-annotated-bursts-gps.csv")
   df <- fread(files[1])
   # df$timestamp %>% ymd_hms %>% date %>% table
   dates <- df$timestamp %>% ymd_hms %>% date %>% unique
-  j = 3
+  j = 4
   for(j in 1:length(dates)){
-   d <- df[which(date(ymd_hms(df$timestamp)) == dates[j]),]
+    # adjust dates by an hour to get them to start at 22:00 UTC, which is 17:00 local time, before bats should depart
+   d <- df[which(date(ymd_hms(df$timestamp)+(2*3600)) == dates[j]),]
    i = 100
     if(nrow(d) > 1000){
       db <- foreach(i = 1:nrow(d), .combine = rbind) %dopar% {
@@ -65,19 +72,27 @@ for(k in 2:length(bats)){
         temp <- data.frame(x,y,z,time,burst)
       }
     db <- na.omit(db)
+    db$time <- ymd_hms(db$time)
+    # remove points after sunrise
+    db <- db[#db$time > ymd_hms(paste0(dates[j]-1, " ", "23:00:00")) &
+            db$time < ymd_hms(paste0(dates[j], " ", "12:00:00")),]
+    # db <- db[hour(db$time) < 12 | hour(db$time) > 22,]
     png(filename = paste0(bats[k],"/",dates[j],"_z_by_time.png"))
-      plot(ymd_hms(db$time), db$z, type = "l", xlab = "time", ylab = "Z")
-      points(d$timestamp[which(d$commuting != "")], rep(0, length(which(d$commuting != ""))), col = 2, pch = 16, cex = 0.5)
+      plot(ymd_hms(db$time)-panama_offset, db$z, type = "l", xlab = "time", ylab = "Z")
+      points(d$timestamp[which(d$commuting != "")]-panama_offset, 
+             rep(0, length(which(d$commuting != ""))), col = 2, pch = 16, cex = 0.5)
     dev.off()
     
-    w <- Wave(left = db$z, samp.rate = 25, bit = 16)
-    plot(w)
+    w <- Wave(left = db$z, samp.rate = sampling_rate, bit = 16)
+    # plot(w)
     spectro(w)
-    wf <- ffilter(w, f= 25, from = 5, to = 7, bandpass = TRUE)
+    wf <- ffilter(w, f= sampling_rate, from = 5, to = 8, bandpass = TRUE)
+    
     png(filename = paste0(bats[k],"/",dates[j],"_wingbeatfreq.png"))
-      spectro(wf, f = 25, wl = 1024*4, ovlp = 75, fastdisp = TRUE)
+      spectro(wf, f = sampling_rate, wl = 1024*4, ovlp = 75, fastdisp = TRUE)
       par(new=TRUE)
-      pf <- dfreq(wf, f=25, wl = 1024*4, ovlp=50, threshold=20, type="l", col="red", lwd=2, xlab = "", ylab = "")  
+      pf <- dfreq(wf, f=sampling_rate, wl = 1024*4, ovlp=50, threshold=20, 
+                  type="l", col="red", lwd=0.5, xlab = "", ylab = "")  
     dev.off()
     
     pf_var <- roll_var(pf[,2], width = 10)
@@ -86,21 +101,68 @@ for(k in 2:length(bats)){
     big <- 1000000
     c <- Mclust((pf_var %>% na.omit)*big, G = 2)
     # plot(c, what = "density")
-    thresh <- c$parameters$mean[1]/big + 2*sqrt(c$parameters$variance$sigmasq[1])/big
+    thresh <- c$parameters$mean[1]/big + 4*sqrt(c$parameters$variance$sigmasq[1])/big
     
     abline(v = thresh, col = 2)
     
-    plot(pf_var, col = (pf_var > thresh)+1)
+    png(filename = paste0(bats[k],"/",dates[j],"_domfreqvar.png"))
+      layout(rbind(1,2))
+      plot(pf_var, col = (pf_var > thresh)+1)
+      plot(pf, col = (pf_var < thresh)+1)
+    dev.off()
     
-    plot(pf, col = (pf_var < thresh)+1)
-    r <- rle(pf_var < thresh)
-    r$values      
-    
-    save(db,w,wf,pf, file = paste0(bats[k],"/",dates[j],"_wingbeatfreq.robj"))
+    # get dominant frequency from stable sections
+      idx <- which(pf_var < thresh)
+      stable_var <- seqToIntervals(idx) %>% as.data.frame
+      stable_var$length <- stable_var$to - stable_var$from + 1
+      
+      w_stable <- stable_var * (pf[,1] %>% diff %>% round(5) %>% unique())
+      df_stable <- stable_var * (pf[,1] %>% diff %>% round(5) %>% unique()) * sampling_rate
+      
+     try({
+        w_stable$peak_freq <- NA
+        w_stable$peak_amp <- NA
+        w_stable$amplitude <- NA
+        i = 2
+        for(i in 1:nrow(w_stable)){
+          if(stable_var$length[i] > 1){
+            w_cut <- Wave(left = db$z[df_stable$from[i]:df_stable$to[i]], 
+                          samp.rate = sampling_rate, bit = 16)
+            wf_cut <- ffilter(w_cut, f= sampling_rate, from = 5, to = 8, bandpass = TRUE)
+            spectro(wf_cut, f = sampling_rate)
+            spec <- meanspec(wf_cut, f=sampling_rate, plot = TRUE)
+            peak <- fpeaks(spec, nmax = 4)
+            pidx <- which(peak[,1] > 0.005) 
+            midx <- which.max(peak[pidx,2])
+            w_stable$peak_freq[i] <- peak[pidx[midx],1]
+            w_stable$peak_amp[i] <- peak[pidx[midx],2]  
+            # df$ACCZ[df_stable$from[i]:df_stable$to[i]] %>% hist
+            maxz <- roll_max(db$z[df_stable$from[i]:df_stable$to[i]], width = 6) %>%
+              median(na.rm = TRUE)
+            minz <- roll_min(db$z[df_stable$from[i]:df_stable$to[i]], width = 6) %>%
+              median(na.rm = TRUE)
+            # abline(v = c(minz, maxz), col = 2, lty = 2)
+            w_stable$amplitude[i] <- maxz - minz 
+          }
+        }
+     }) 
+      try({
+        png(filename = paste0(bats[k],"/", dates[j],"_domfreq_segments.png"))
+          plot(x = ymd_hms(db$time[df_stable$from])-5*3600, y = w_stable$peak_freq*1000, 
+             cex = 2*scales::rescale(w_stable$amplitude), 
+             xlab = "local time", ylab = "dominant wingbeat frequency (Hz)")
+          segments(x0 = ymd_hms(db$time[df_stable$from])-5*3600, 
+              y0 = w_stable$peak_freq*1000, 
+              x1 = ymd_hms(db$time[df_stable$to])-5*3600, 
+              y1 = w_stable$peak_freq*1000)
+        dev.off()  
+      })
+      
+    save(db,w,wf,pf, pf_var, sample_rate, thresh, stable_var, w_stable, df_stable, 
+         file = paste0(bats[k],"/",dates[j],"_wingbeatfreq.robj"))
     }
   }
 }
-
 
 ```
 
