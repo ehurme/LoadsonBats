@@ -3,7 +3,7 @@ title: "Untitled"
 output: html_document
 date: "2022-12-27"
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 
@@ -31,7 +31,7 @@ registerDoParallel(cl)
 ## Pteropus lylei
 
 ```{r}
-path <- "./../../../Dropbox/MPI/Pteropus/data/"
+path <- "../../../../Dropbox/MPI/Pteropus/data/"
 studies <- list.files(path, pattern = "*.csv", 
                       full.names = FALSE)
 layout(1)

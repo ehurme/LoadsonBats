@@ -30,15 +30,15 @@ registerDoParallel(cl)
 ## P. hastatus
 
 ```{r}
-bats <- list.dirs("./../../../ownCloud/Firetail/Model_7CE02AF_main")
+bats <- list.files("../../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/", full.names = TRUE, 
+                    pattern = "*.csv")
 k = 2
 sunset <- 18
 sunrise <- 6
 panama_offset <- 5*3600
 sampling_rate = 25
 for(k in 3:length(bats)){
-  files <- list.files(bats[k], full.names = TRUE, 
-                    pattern = "*-annotated-bursts-gps.csv")
+  files <- list.files(bats[k])
   df <- fread(files[1])
   # df$timestamp %>% ymd_hms %>% date %>% table
   dates <- df$timestamp %>% ymd_hms %>% date %>% unique
