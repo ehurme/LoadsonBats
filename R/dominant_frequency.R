@@ -20,10 +20,13 @@ gps = FALSE
 min_seg_duration = 30
 dfreq_threshold = 20
 use_FFT = TRUE
+use_wavelet = FALSE
 tag_type = "eObs" # "wildfi"
 tad_id <- NULL
 firetail = TRUE
 firetail_filter = FALSE
+solar_time = TRUE
+save_files = FALSE
 
 # Burst
 # PCA
@@ -65,6 +68,9 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
     bats <- "bat"
     df$id <- "bat"
   }
+  if(length(df$id) == 0){
+    df$id <- tag_id
+  }
 
   if(length(df$timestamp) == 0){
     if(length(time) > 0){
@@ -84,7 +90,7 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
   i = 1
   for(i in 1:length(bats)){
     bdf <- df[df$id == bats[i],]
-    dates <- unique(date(ymd_hms(bdf$solar_time)))
+    dates <- unique(date(bdf$solar_time))
     # date(ymd_hms(bdf$timestamp)) %>% table
     j = 1
     for(j in 1:length(dates)){
@@ -183,6 +189,9 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
           }
           db <- na.omit(db)
           db$time <- ymd_hms(db$time)
+          if(solar_time == TRUE){
+            db$time <- db$time - hour(sun$solarNoon[1])*3600
+          }
           x <- db$x
           y <- db$y
           z <- db$z
@@ -314,14 +323,17 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
                                   samp.rate = sampling_rate, bit = 16)
                   }
 
-                  png(file = paste0(save_path)
-                  layout(1)
-                  plot(w, main = paste0(bats[i]," ", dates[j]," segment ", jj))
-                  abline(v = w_stable$to[jj], col = 2, lwd = 2)
-                  abline(v = w_stable$from[jj], col = 3, lwd = 2)
+                  png(file = paste0(save_path, "Wav_", bats[i],"_", dates[j],"_segment_", jj, ".png"))
+                    layout(1)
+                    plot(w, main = paste0(bats[i]," ", dates[j]," segment ", jj))
+                    abline(v = w_stable$to[jj], col = 2, lwd = 2)
+                    abline(v = w_stable$from[jj], col = 3, lwd = 2)
                   dev.off()
                   wf_cut <- ffilter(w_cut, f= sampling_rate, from = min_freq, to = max_freq, bandpass = TRUE)
-                  spectro(wf_cut, f = sampling_rate, xpd = FALSE)
+
+                  png(file = paste0(save_path, "Spectro_", bats[i],"_", dates[j],"_segment_", jj, ".png"))
+                    spectro(wf_cut, f = sampling_rate, xpd = FALSE)
+                  dev.off()
                   spec <- meanspec(wf_cut, f=sampling_rate, plot = FALSE)
                   layout(1)
                   peak <- fpeaks(spec, nmax = 8)
@@ -376,21 +388,34 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
         }
 
         try({
-          png(filename = paste0(path, "wingbeat/", studies[k], bats[j], "_", dates[i],"_domfreq_segments.png"))
+          png(filename = paste0(save_path, "Domfreq_segments_",  bats[i], "_", dates[i],".png"))
+          layout(1)
+          xlab = "time (UTC)"
+          if(solar_time == TRUE){
+            xlab = "Time since solar noon"
+          }
           plot(x = ymd_hms(db$time[df_stable$from]), y = w_stable$peak_freq*1000,
                cex = 2*scales::rescale(w_stable$amplitude),
-               xlab = "time (UTC)", ylab = "dominant wingbeat frequency (Hz)")
+               xlab = xlab, ylab = "dominant wingbeat frequency (Hz)")
           segments(x0 = ymd_hms(db$time[df_stable$from]),
                    y0 = w_stable$peak_freq*1000,
                    x1 = ymd_hms(db$time[df_stable$to]),
                    y1 = w_stable$peak_freq*1000)
-          abline(v = sun$sunset, col = "blue")
-          abline(v = sun$sunrise, col = "orange")
+          if(solar_time == TRUE){
+            abline(v = sun$sunset - hour(sun$solarNoon[1])*3600, col = "blue")
+            abline(v = sun$sunrise - hour(sun$solarNoon[1])*3600, col = "orange")
+          }
+          if(solar_time == FALSE){
+            abline(v = sun$sunset, col = "blue")
+            abline(v = sun$sunrise, col = "orange")
+          }
           dev.off()
         })
 
-        save(db, w, wf, pf, sampling_rate, stable_var, w_stable, df_stable,
-             file = paste0(save_path, bats[i], "_", dates[j],"_wingbeatfreq.robj"))
+        if(save_files == TRUE){
+          save(db, w, wf, pf, sampling_rate, stable_var, w_stable, df_stable,
+               file = paste0(save_path, bats[i], "_", dates[j],"_wingbeatfreq.robj"))
+        }
       }
     }
   }
