@@ -1,12 +1,12 @@
 ## function to get the dominant frequency from ACC data during commutes
 
 # df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
-df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA805-annotated-bursts-gps.csv")
+df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
 #
 # calculate sunset and sunrise
 # add wavelet
 save_path = "./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/Wingbeats/PCA/"
-tag_id <- "7CDA805"
+tag_id <- "7CDA644"
 Burst = TRUE
 PCA = TRUE
 sampling_rate = 25 # P. hastatus
@@ -112,7 +112,7 @@ dominant_freq <- function(df,
     bdf <- df[df$id == bats[i],]
     dates <- unique(date(bdf$solar_time))
     # date(ymd_hms(bdf$timestamp)) %>% table
-    j = 1
+    j = 3
     for(j in 1:length(dates)){
       d <- bdf[which(date(ymd_hms(bdf$solar_time)) == dates[j]),]
 
@@ -417,9 +417,22 @@ dominant_freq <- function(df,
           if(solar_time == TRUE){
             xlab = "Time since solar noon"
           }
-          plot(x = ymd_hms(db$time[df_stable$from]), y = w_stable$peak_freq*1000,
-               cex = 2*scales::rescale(w_stable$amplitude),
-               xlab = xlab, ylab = "dominant wingbeat frequency (Hz)")
+          if(firetail == TRUE){
+            w_stable$firetail <- factor(w_stable$firetail,
+                                        levels = c("c", "f", "r"))
+            plot(x = ymd_hms(db$time[df_stable$from]), y = w_stable$peak_freq*1000,
+                 cex = 2*scales::rescale(w_stable$amplitude),
+                 pch = 16,
+                 col = w_stable$firetail,
+                 xlab = xlab, ylab = "dominant wingbeat frequency (Hz)")
+          }
+          if(firetail == FALSE){
+            plot(x = ymd_hms(db$time[df_stable$from]), y = w_stable$peak_freq*1000,
+                 cex = 2*scales::rescale(w_stable$amplitude),
+                 pch = 16,
+                 col = 2,
+                 xlab = xlab, ylab = "dominant wingbeat frequency (Hz)")
+          }
           segments(x0 = ymd_hms(db$time[df_stable$from]),
                    y0 = w_stable$peak_freq*1000,
                    x1 = ymd_hms(db$time[df_stable$to]),
@@ -431,6 +444,10 @@ dominant_freq <- function(df,
           if(solar_time == FALSE){
             abline(v = sun$sunset, col = "blue")
             abline(v = sun$sunrise, col = "orange")
+          }
+          if(firetail == TRUE){
+            legend("topright", legend = c("commuting", "foraging", "resting"),
+                   col = c(1:3), pch = 16)
           }
           dev.off()
         })
