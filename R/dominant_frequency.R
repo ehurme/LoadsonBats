@@ -17,7 +17,7 @@ max_freq = 8  # 4
 wavelet = TRUE
 saved_cores = 4
 gps = FALSE
-min_seg_duration = 30
+min_seg_duration = 10
 dfreq_threshold = 20
 use_FFT = TRUE
 use_wavelet = FALSE
@@ -38,12 +38,26 @@ save_files = FALSE
 # gps - is there gps data and should we plot it?
 # saved_cores
 time <- dmy_hms(df$utcDate)
-dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
-                          tag_type = "Wildfi",
-                          PCA = FALSE, sampling_rate = 25,
-                          min_freq = 2, max_freq = 8,
+dominant_freq <- function(df,
+                          save_path = NULL,
+                          tag_id = NULL,
+                          Burst = TRUE,
+                          PCA = TRUE,
+                          sampling_rate = 25, # P. hastatus
+                          min_freq = 2,
+                          max_freq = 8,
+                          wavelet = FALSE,
+                          saved_cores = 4,
+                          gps = TRUE,
                           min_seg_duration = 10,
-                          wavelet = FALSE, gps = FALSE, saved_cores = 4){
+                          dfreq_threshold = 20,
+                          use_FFT = TRUE,
+                          use_wavelet = FALSE,
+                          tag_type = "eObs", # "wildfi"
+                          firetail = TRUE,
+                          firetail_filter = FALSE,
+                          solar_time = TRUE,
+                          save_files = TRUE){
   # load libraries
   ## utilities
   require(pacman)
@@ -68,9 +82,10 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
     bats <- "bat"
     df$id <- "bat"
   }
-  if(length(df$id) == 0){
+  try({
+    if(length(df$id) == 0){
     df$id <- tag_id
-  }
+  }})
 
   if(length(df$timestamp) == 0){
     if(length(time) > 0){
@@ -89,6 +104,11 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
   df$solar_time <- df$timestamp - hour(sun$solarNoon[1])*60*60
   i = 1
   for(i in 1:length(bats)){
+    full_path <- paste0(save_path, tag_id, "/")
+    if(!dir.exists(full_path)){
+      dir.create(full_path)
+    }
+
     bdf <- df[df$id == bats[i],]
     dates <- unique(date(bdf$solar_time))
     # date(ymd_hms(bdf$timestamp)) %>% table
@@ -323,7 +343,7 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
                                   samp.rate = sampling_rate, bit = 16)
                   }
 
-                  png(file = paste0(save_path, "Wav_", bats[i],"_", dates[j],"_segment_", jj, ".png"))
+                  png(file = paste0(full_path, "Wav_", bats[i],"_", dates[j],"_segment_", jj, ".png"))
                     layout(1)
                     plot(w, main = paste0(bats[i]," ", dates[j]," segment ", jj))
                     abline(v = w_stable$to[jj], col = 2, lwd = 2)
@@ -331,7 +351,7 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
                   dev.off()
                   wf_cut <- ffilter(w_cut, f= sampling_rate, from = min_freq, to = max_freq, bandpass = TRUE)
 
-                  png(file = paste0(save_path, "Spectro_", bats[i],"_", dates[j],"_segment_", jj, ".png"))
+                  png(file = paste0(full_path, "Spectro_", bats[i],"_", dates[j],"_segment_", jj, ".png"))
                     spectro(wf_cut, f = sampling_rate, xpd = FALSE)
                   dev.off()
                   spec <- meanspec(wf_cut, f=sampling_rate, plot = FALSE)
@@ -388,7 +408,7 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
         }
 
         try({
-          png(filename = paste0(save_path, "Domfreq_segments_",  bats[i], "_", dates[i],".png"))
+          png(filename = paste0(full_path, "Domfreq_segments_",  bats[i], "_", dates[j],".png"))
           layout(1)
           xlab = "time (UTC)"
           if(solar_time == TRUE){
@@ -414,7 +434,7 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
 
         if(save_files == TRUE){
           save(db, w, wf, pf, sampling_rate, stable_var, w_stable, df_stable,
-               file = paste0(save_path, bats[i], "_", dates[j],"_wingbeatfreq.robj"))
+               file = paste0(full_path, bats[i], "_", dates[j],"_wingbeatfreq.robj"))
         }
       }
     }
