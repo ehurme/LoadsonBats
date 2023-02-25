@@ -1,20 +1,29 @@
 ## function to get the dominant frequency from ACC data during commutes
 
-df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
+# df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
+df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA805-annotated-bursts-gps.csv")
+#
 # calculate sunset and sunrise
 # add wavelet
+save_path = "./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/Wingbeats/PCA/"
+tag_id <- "7CDA805"
 Burst = TRUE
 PCA = TRUE
-sampling_rate = 50 # P. hastatus
+sampling_rate = 25 # P. hastatus
   # P. lylei 18.74
+  # R. aegyptiacus 50
 min_freq = 2
 max_freq = 8  # 4
 wavelet = TRUE
-saved_cores = 20
+saved_cores = 4
 gps = FALSE
 min_seg_duration = 30
 dfreq_threshold = 20
 use_FFT = TRUE
+tag_type = "eObs" # "wildfi"
+tad_id <- NULL
+firetail = TRUE
+firetail_filter = FALSE
 
 # Burst
 # PCA
@@ -27,31 +36,21 @@ use_FFT = TRUE
 # saved_cores
 time <- dmy_hms(df$utcDate)
 dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
-                          tag_type == "Wildfi",
+                          tag_type = "Wildfi",
                           PCA = FALSE, sampling_rate = 25,
                           min_freq = 2, max_freq = 8,
                           min_seg_duration = 10,
                           wavelet = FALSE, gps = FALSE, saved_cores = 4){
   # load libraries
   ## utilities
-  require(data.table)
-  require(magrittr)
-  require(foreach)
-  require(doParallel)
-  require(R.utils)
-  require(roll)
-  # time
-  require(lubridate)
-  require(suncalc)
-  # movement analysis
-  require(marcher)
-  # sound analysis
-  require(seewave)
-  require(Rwave)
-  require(tuneR)
-  require(dplR)
+  require(pacman)
+  p_load(data.table, magrittr, dplyr,
+         foreach, doParallel, R.utils, roll,
+         lubridate, suncalc,
+         seewave, Rwave, tuneR,
+         mclust)
 
-  source("../NoctuleMigration/scr/scan.track.map.r")
+  # source("../NoctuleMigration/scr/scan.track.map.r")
 
   # get timestamp with milliseconds
   op <- options(digits.secs=3)
@@ -60,7 +59,8 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
   cl <- makeCluster(cores[1]-saved_cores) #not to overload your computer
   registerDoParallel(cl)
 
-  bats <- unique(tag_id)
+  bats <- {}
+  try(bats <- unique(tag_id))
   if(length(bats) == 0){
     bats <- "bat"
     df$id <- "bat"
@@ -79,14 +79,16 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
                      lon = median(df$location_long, na.rm = TRUE))
   sun <- suncalc::getSunlightTimes(data = data)
   moon <- suncalc::getMoonTimes(data = data)
+
+  df$solar_time <- df$timestamp - hour(sun$solarNoon[1])*60*60
   i = 1
   for(i in 1:length(bats)){
     bdf <- df[df$id == bats[i],]
-    dates <- unique(date(ymd_hms(bdf$timestamp)))
+    dates <- unique(date(ymd_hms(bdf$solar_time)))
     # date(ymd_hms(bdf$timestamp)) %>% table
-    j = 3
+    j = 1
     for(j in 1:length(dates)){
-      d <- bdf[which(date(ymd_hms(bdf$timestamp)) == dates[j]),]
+      d <- bdf[which(date(ymd_hms(bdf$solar_time)) == dates[j]),]
 
       if(gps == TRUE){
         # plot tracks
@@ -94,27 +96,51 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
         lat <- d$location_lat
         gps_time <- d$timestamp
         # get sunrise and sunset times
-        layout(rbind(c(1, 2), c(1, 3)))
-        par(mar = c(0, 4, 0, 0), oma = c(4, 0, 4, 4), xpd = NA)
-        plot(lon, lat, asp = 1, type = "o", pch = 19)
-        plot(gps_time, lon, type = "o", pch = 19,
-             xlab = "", xaxt = "none",
-             xlim = c(gps_time[1]-3*3600,
-                      gps_time[length(gps_time)]+3*3600))
-        abline(v = sun$sunset, col = "blue", xpd = FALSE)
-        abline(v = sun$sunrise, col = "orange", xpd = FALSE)
-        plot(gps_time, lat, type = "o", pch = 19,
-             xlim = c(gps_time[1]-3*3600,
-                      gps_time[length(gps_time)]+3*3600))
-        abline(v = sun$sunset, col = "blue", xpd = FALSE)
-        abline(v = sun$sunrise, col = "orange", xpd = FALSE)
-        legend("bottomright", legend = c("sunset", "sunrise"), col = c("blue", "orange"), lty = 1)
-        # get speed
+        try({
+          layout(rbind(c(1, 2), c(1, 3)))
+          par(mar = c(0, 4, 0, 0), oma = c(4, 0, 4, 4), xpd = NA)
+          plot(lon, lat, asp = 1, type = "o", pch = 19, cex = 0.5)
+          if(firetail == TRUE){
+            commuting_idx <- which(d$annotation_layer_commuting != "" & d$type == "gps")
+            foraging_idx <- which(d$annotation_layer_foraging != "" & d$type == "gps")
+            resting_idx <- which(d$annotation_layer_resting != "" & d$type == "gps")
+            with(d[commuting_idx,], points(location_long, location_lat, col = "green"))
+            with(d[foraging_idx,], points(location_long, location_lat, col = "red"))
+            with(d[resting_idx,], points(location_long, location_lat, col = "blue"))
+            legend("topleft", legend = c("commuting", "foraging", "resting"),
+                   col = c("green", "red", "blue"), pch = 16)
+          }
+          plot(gps_time, lon, type = "o", pch = 19, cex = 0.5,
+               xlab = "", xaxt = "none",
+               xlim = c(gps_time[1]-3*3600,
+                        gps_time[length(gps_time)]+3*3600))
 
-        # label commutes
-        ## first passage time?
+          lines(gps_time, lon)
+          if(firetail == TRUE){
+            with(d[commuting_idx,], points(timestamp, location_long, col = "green"))
+            with(d[foraging_idx,], points(timestamp, location_long, col = "red"))
+            with(d[resting_idx,], points(timestamp, location_long, col = "blue"))
+          }
+          abline(v = sun$sunset, col = "blue", xpd = FALSE)
+          abline(v = sun$sunrise, col = "orange", xpd = FALSE)
+          plot(gps_time, lat, type = "o", pch = 19, cex = 0.5,
+               xlim = c(gps_time[1]-3*3600,
+                        gps_time[length(gps_time)]+3*3600))
+          lines(gps_time, lat)
+          if(firetail == TRUE){
+            with(d[commuting_idx,], points(timestamp, location_lat, col = "green"))
+            with(d[foraging_idx,], points(timestamp, location_lat, col = "red"))
+            with(d[resting_idx,], points(timestamp, location_lat, col = "blue"))
+          }
+          abline(v = sun$sunset, col = "blue", xpd = FALSE)
+          abline(v = sun$sunrise, col = "orange", xpd = FALSE)
+          legend("bottomright", legend = c("sunset", "sunrise"), col = c("blue", "orange"), lty = 1)
+          # get speed
+
+          # label commutes
+          ## first passage time?
+        })
       }
-
       x <- {}
       y <- {}
       z <- {}
@@ -162,6 +188,24 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
           z <- db$z
           time <- db$time
           burst <- db$burst
+          if(firetail == TRUE){
+            commuting_idx <- which(d$annotation_layer_commuting != "" & d$type == "acc")
+            foraging_idx <- which(d$annotation_layer_foraging != "" & d$type == "acc")
+            resting_idx <- which(d$annotation_layer_resting != "" & d$type == "acc")
+
+            db$firetail <- NA
+            db$firetail[db$burst %in% commuting_idx] <- "c"
+            db$firetail[db$burst %in% foraging_idx] <- "f"
+            db$firetail[db$burst %in% resting_idx] <- "r"
+            behav <- db$firetail
+            if(firetail_filter == TRUE){
+              fire_idx <- which(behav != "r")
+              x <- x[fire_idx]
+              y <- y[fire_idx]
+              z <- z[fire_idx]
+              time <- time[fire_idx]
+            }
+          }
         }
       }
       if(Burst == FALSE){
@@ -170,152 +214,184 @@ dominant_freq <- function(df, tag_id = NULL, time = NULL, Burst = FALSE,
         z <- df$ACCZ
         time <- df$time
       }
+      if(length(x) > 1){
+        # pca
+        if(PCA == TRUE){
+          try({
+            pc <- prcomp(cbind(x, y, z), scale. = FALSE)
+            w <- Wave(left = pc$x[,1], samp.rate = sampling_rate, bit = 16)
+            wf <- ffilter(w, f= sampling_rate, from = min_freq, to = max_freq, bandpass = TRUE)
+            spectro(wf, f = sampling_rate, wl = 1024*4, ovlp = 50, fastdisp = TRUE)
+            # add sunrise and sunset?
+          })
 
-      # pca
-      if(PCA == TRUE){
-        pc <- prcomp(cbind(x, y, z), scale. = FALSE)
-        w <- Wave(left = pc$x[,1], samp.rate = sampling_rate, bit = 16)
-        wf <- ffilter(w, f= sampling_rate, from = min_freq, to = max_freq, bandpass = TRUE)
-        spectro(wf, f = sampling_rate, wl = 1024*4, ovlp = 50, fastdisp = TRUE)
-        # add sunrise and sunset?
-      }
-      if(PCA == FALSE){
-        # create wave form
-        w <- Wave(left = z, samp.rate = sampling_rate, bit = 16)
-        wf <- ffilter(w, f= sampling_rate, from = min_freq, to = max_freq, bandpass = TRUE)
-        spectro(wf, f = sampling_rate, wl = 1024*4, ovlp = 50, fastdisp = TRUE)
-      }
-      par(new=TRUE)
-      pf <- dfreq(wf, f=sampling_rate, wl = 1024*4, ovlp=75, threshold=dfreq_threshold,
-                  type="l", col="red", lwd=0.5, xlab = "", ylab = "")
-
-      # get periods where wing beat can be estimated
-      idx <- which(!is.na(pf[,2])) -1
-      stable_var <- seqToIntervals(idx) %>% as.data.frame
-      stable_var$diff <- NA
-
-      ## join periods that are less than # samples apart
-      min_diff = 5 # what are the time units on this?
-      kk = 1
-      for(kk in 1:nrow(stable_var)){
-        stable_var$diff[kk] <- stable_var$from[kk+1] - stable_var$to[kk]
-      }
-      while(any(stable_var$diff < min_diff, na.rm = TRUE)){
-        rm_idx <- {}
-        for(kk in 1:(nrow(stable_var)-1)){
-          if(stable_var$diff[kk] < min_diff){
-            stable_var$from[kk+1] <- stable_var$from[kk]
-            rm_idx <- c(rm_idx, kk)
-          }
         }
-        stable_var <- stable_var[-rm_idx,]
+        if(PCA == FALSE){
+          # create wave form
+          w <- Wave(left = z, samp.rate = sampling_rate, bit = 16)
+          wf <- ffilter(w, f= sampling_rate, from = min_freq, to = max_freq, bandpass = TRUE)
+          spectro(wf, f = sampling_rate, wl = 1024*4, ovlp = 50, fastdisp = TRUE)
+        }
+        par(new=TRUE)
+        pf <- dfreq(wf, f=sampling_rate, wl = 1024*4, ovlp=75, threshold=dfreq_threshold,
+                    type="l", col="red", lwd=0.5, xlab = "", ylab = "")
+
+        # get segments where wing beat can be estimated
+        idx <- which(!is.na(pf[,2])) -1
+        stable_var <- seqToIntervals(idx) %>% as.data.frame
+        stable_var$diff <- NA
+
+        # if track is all one segment, divide track by variation in wingbeat
+        if(nrow(stable_var) < 2){
+          # divide track by variation in freq
+          pf_var <- roll_var(pf[,2], width = 10)
+          hist(pf_var, breaks = 300)
+
+          big <- 1000000
+          c <- Mclust((pf_var %>% na.omit)*big, G = 2)
+          # plot(c, what = "density")
+          thresh <- c$parameters$mean[1]/big + 4*sqrt(c$parameters$variance$sigmasq[1])/big
+
+          layout(1)
+          # plot(pf_var, col = (pf_var > thresh)+1)
+          plot(pf, col = (pf_var < thresh)+1)
+          idx <- which(pf_var < thresh)
+          stable_var <- seqToIntervals(idx) %>% as.data.frame
+        }
+
+        ## join periods that are less than # samples apart
+        min_diff = 5 # what are the time units on this?
+        kk = 1
         for(kk in 1:nrow(stable_var)){
           stable_var$diff[kk] <- stable_var$from[kk+1] - stable_var$to[kk]
         }
-      }
-
-      stable_var$length <- stable_var$to - stable_var$from# + 1
-
-      ## create
-      # multiply by sampling interval of pf
-      w_stable <- stable_var * (pf[2,1])
-
-      df_stable <- stable_var * (pf[2,1]) * sampling_rate
-      ## fix last value
-      # df_stable$to[nrow(df_stable)] <- nrow(db)
-      # nrow(db)-6233 * (pf[2,1]) * sampling_rate
-
-      # fix first value
-      if(w_stable[1,1] == 0) w_stable[1,1] <- 1
-      if(df_stable[1,1] == 0) df_stable[1,1] <- 1
-
-      # get FFT peak freq
-      if(use_FFT == TRUE){
-        try({
-          w_stable$peak_freq <- NA
-          # w_stable$peak_amp <- NA
-          w_stable$amplitude <- NA
-          # jj = which.max(w_stable$length)
-          for(jj in 1:nrow(w_stable)){
-            if(stable_var$length[jj] > 1){
-              # filter short periods
-              if(difftime(db$time[df_stable$to[jj]],db$time[df_stable$from[jj]], units = "mins") > min_seg_duration){
-                w_cut <- Wave(left = db$z[df_stable$from[jj]:df_stable$to[jj]] %>% na.omit,
-                              samp.rate = sampling_rate, bit = 16)
-
-                plot(w)
-                abline(v = w_stable$to[jj], col = 2)
-                abline(v = w_stable$from[jj], col = 3)
-                wf_cut <- ffilter(w_cut, f= sampling_rate, from = min_freq, to = max_freq, bandpass = TRUE)
-                spectro(wf_cut, f = sampling_rate)
-                spec <- meanspec(wf_cut, f=sampling_rate, plot = FALSE)
-                layout(1)
-                peak <- fpeaks(spec, nmax = 8)
-                pidx <- which(peak[,1] > 0.0025)
-                midx <- which.max(peak[pidx,2])
-                w_stable$peak_freq[jj] <- peak[pidx[midx],1]
-                # w_stable$peak_amp[jj] <- peak[pidx[midx],2] # doesn't seem like a useful value
-                # df$ACCZ[df_stable$from[i]:df_stable$to[i]] %>% hist
-                maxz <- roll_max(db$z[df_stable$from[jj]:df_stable$to[jj]], width = 6) %>%
-                  median(na.rm = TRUE)
-                minz <- roll_min(db$z[df_stable$from[jj]:df_stable$to[jj]], width = 6) %>%
-                  median(na.rm = TRUE)
-                # abline(v = c(minz, maxz), col = 2, lty = 2)
-                w_stable$amplitude[jj] <- maxz - minz
-              }
+        while(any(stable_var$diff < min_diff, na.rm = TRUE)){
+          rm_idx <- {}
+          for(kk in 1:(nrow(stable_var)-1)){
+            if(stable_var$diff[kk] < min_diff){
+              stable_var$from[kk+1] <- stable_var$from[kk]
+              rm_idx <- c(rm_idx, kk)
             }
           }
-        })
-      }
+          stable_var <- stable_var[-rm_idx,]
+          for(kk in 1:nrow(stable_var)){
+            stable_var$diff[kk] <- stable_var$from[kk+1] - stable_var$to[kk]
+          }
+        }
 
-      # wavelet give frequencies lower than expected
-      if(use_wavelet == TRUE){
-        try({
-          w_stable$peak_freq <- NA
-          # w_stable$peak_amp <- NA
-          w_stable$amplitude <- NA
-          jj = which.max(w_stable$length)
-          for(jj in 1:nrow(w_stable)){
-            if(stable_var$length[jj] > 1){
-              # filter short periods
-              if(difftime(db$time[df_stable$to[jj]],db$time[df_stable$from[jj]], units = "mins") > min_seg_duration){
-                w_cut <- Wave(left = db$z[df_stable$from[jj]:df_stable$to[jj]] %>% na.omit,
-                              samp.rate = sampling_rate, bit = 16)
-                spectro(w_cut)
+        stable_var$length <- stable_var$to - stable_var$from + 1 # adding one includes all parts of the segment
 
-                wvl <- dplR::morlet(y1 = db$z[df_stable$from[jj]:df_stable$to[jj]][20001:40000],
-                                    x1 = db$time[df_stable$from[jj]:df_stable$to[jj]][1:20000] %>% as.numeric,
-                                    p2 = 3, dj = 0.01, siglvl = 0.99)
-                layout(1)
-                # wvl$Power %>% image
-                plot(wvl$x, wvl$Scale[apply(wvl$Power,1,which.max)],
-                     cex = apply(wvl$Power,1,max)/max(apply(wvl$Power,1,max)),
-                     ylim = c(0,8), col = rgb(0,0,0,.1))
-                lines(wvl$x, roll_mean(wvl$Scale[apply(wvl$Power,1,which.max)], width = 100), col = 2)
-                abline(h = 6, col = 2)
-                (wvl$Scale[apply(wvl$Power,1,which.max)]) %>% hist(breaks = 1000)
-                dplR::wavelet.plot(wvl, useRaster = NA)
+        ## create
+        # multiply by sampling interval of pf
+        w_stable <- stable_var * (pf[2,1])
+        df_stable <- stable_var * (pf[2,1]) * sampling_rate
+
+        ## fix last value??
+        # df_stable$to[nrow(df_stable)] <- nrow(db)
+        # nrow(db)-6233 * (pf[2,1]) * sampling_rate
+
+        # fix first value
+        if(w_stable[1,1] == 0) w_stable[1,1] <- 1
+        if(df_stable[1,1] == 0) df_stable[1,1] <- 1
+
+        # get FFT peak freq
+        if(use_FFT == TRUE){
+          try({
+            w_stable$peak_freq <- NA
+            w_stable$peak_amp_diff <- NA # difference from 1st peak amplitude to 8th peak
+            w_stable$amplitude <- NA
+            # jj = which.max(w_stable$length)
+            for(jj in 1:nrow(w_stable)){
+              if(stable_var$length[jj] > 1){
+                # filter short periods
+                if(difftime(db$time[df_stable$to[jj]],db$time[df_stable$from[jj]], units = "mins") > min_seg_duration){
+                  if(PCA == TRUE){
+                    w_cut <- Wave(left = pc$x[,1][df_stable$from[jj]:df_stable$to[jj]] %>% na.omit,
+                                  samp.rate = sampling_rate, bit = 16)
+                  }
+                  if(PCA == FALSE){
+                    w_cut <- Wave(left = db$z[df_stable$from[jj]:df_stable$to[jj]] %>% na.omit,
+                                  samp.rate = sampling_rate, bit = 16)
+                  }
+
+                  png(file = paste0(save_path)
+                  layout(1)
+                  plot(w, main = paste0(bats[i]," ", dates[j]," segment ", jj))
+                  abline(v = w_stable$to[jj], col = 2, lwd = 2)
+                  abline(v = w_stable$from[jj], col = 3, lwd = 2)
+                  dev.off()
+                  wf_cut <- ffilter(w_cut, f= sampling_rate, from = min_freq, to = max_freq, bandpass = TRUE)
+                  spectro(wf_cut, f = sampling_rate, xpd = FALSE)
+                  spec <- meanspec(wf_cut, f=sampling_rate, plot = FALSE)
+                  layout(1)
+                  peak <- fpeaks(spec, nmax = 8)
+                  pidx <- which(peak[,1] > 0.0025)
+                  midx <- which.max(peak[pidx,2])
+                  w_stable$peak_freq[jj] <- peak[pidx[midx],1]
+                  w_stable$peak_amp_diff[jj] <- peak[,2] %>% range %>% diff # doesn't seem like a useful value
+                  # df$ACCZ[df_stable$from[i]:df_stable$to[i]] %>% hist
+                  maxz <- roll_max(db$z[df_stable$from[jj]:df_stable$to[jj]], width = 6) %>%
+                    median(na.rm = TRUE)
+                  minz <- roll_min(db$z[df_stable$from[jj]:df_stable$to[jj]], width = 6) %>%
+                    median(na.rm = TRUE)
+                  # abline(v = c(minz, maxz), col = 2, lty = 2)
+                  w_stable$amplitude[jj] <- maxz - minz
+                }
               }
             }
-          }
+          })
+        }
+
+        # wavelet give frequencies lower than expected
+        if(use_wavelet == TRUE){
+          try({
+            w_stable$peak_freq <- NA
+            # w_stable$peak_amp <- NA
+            w_stable$amplitude <- NA
+            jj = which.max(w_stable$length)
+            for(jj in 1:nrow(w_stable)){
+              if(stable_var$length[jj] > 1){
+                # filter short periods
+                if(difftime(db$time[df_stable$to[jj]],db$time[df_stable$from[jj]], units = "mins") > min_seg_duration){
+                  w_cut <- Wave(left = db$z[df_stable$from[jj]:df_stable$to[jj]] %>% na.omit,
+                                samp.rate = sampling_rate, bit = 16)
+                  spectro(w_cut)
+
+                  wvl <- dplR::morlet(y1 = db$z[df_stable$from[jj]:df_stable$to[jj]][20001:40000],
+                                      x1 = db$time[df_stable$from[jj]:df_stable$to[jj]][1:20000] %>% as.numeric,
+                                      p2 = 3, dj = 0.01, siglvl = 0.99)
+                  layout(1)
+                  # wvl$Power %>% image
+                  plot(wvl$x, wvl$Scale[apply(wvl$Power,1,which.max)],
+                       cex = apply(wvl$Power,1,max)/max(apply(wvl$Power,1,max)),
+                       ylim = c(0,8), col = rgb(0,0,0,.1))
+                  lines(wvl$x, roll_mean(wvl$Scale[apply(wvl$Power,1,which.max)], width = 100), col = 2)
+                  abline(h = 6, col = 2)
+                  (wvl$Scale[apply(wvl$Power,1,which.max)]) %>% hist(breaks = 1000)
+                  dplR::wavelet.plot(wvl, useRaster = NA)
+                }
+              }
+            }
+          })
+        }
+
+        try({
+          png(filename = paste0(path, "wingbeat/", studies[k], bats[j], "_", dates[i],"_domfreq_segments.png"))
+          plot(x = ymd_hms(db$time[df_stable$from]), y = w_stable$peak_freq*1000,
+               cex = 2*scales::rescale(w_stable$amplitude),
+               xlab = "time (UTC)", ylab = "dominant wingbeat frequency (Hz)")
+          segments(x0 = ymd_hms(db$time[df_stable$from]),
+                   y0 = w_stable$peak_freq*1000,
+                   x1 = ymd_hms(db$time[df_stable$to]),
+                   y1 = w_stable$peak_freq*1000)
+          abline(v = sun$sunset, col = "blue")
+          abline(v = sun$sunrise, col = "orange")
+          dev.off()
         })
+
+        save(db, w, wf, pf, sampling_rate, stable_var, w_stable, df_stable,
+             file = paste0(save_path, bats[i], "_", dates[j],"_wingbeatfreq.robj"))
       }
-
-
-      try({
-        png(filename = paste0(path, "wingbeat/", studies[k], bats[j], "_", dates[i],"_domfreq_segments.png"))
-        plot(x = ymd_hms(db$time[df_stable$from])+time_offset, y = w_stable$peak_freq*1000,
-             cex = 2*scales::rescale(w_stable$amplitude),
-             xlab = "local time", ylab = "dominant wingbeat frequency (Hz)")
-        segments(x0 = ymd_hms(db$time[df_stable$from])+time_offset,
-                 y0 = w_stable$peak_freq*1000,
-                 x1 = ymd_hms(db$time[df_stable$to])+time_offset,
-                 y1 = w_stable$peak_freq*1000)
-        dev.off()
-      })
-
-      save(db,w,wf,pf, sampling_rate, stable_var, w_stable, df_stable,
-           file = paste0(path, "wingbeat/", studies[k], bats[j], "_", dates[i],"_wingbeatfreq.robj"))
-  }
+    }
   }
 }
