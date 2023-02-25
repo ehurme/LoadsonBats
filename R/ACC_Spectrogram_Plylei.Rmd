@@ -31,30 +31,22 @@ registerDoParallel(cl)
 ## Pteropus lylei
 
 ```{r}
-path <- "../../../../Dropbox/MPI/Pteropus/data/"
-studies <- list.files(path, pattern = "*.csv", 
+path <- "./../../../OwnCloud/Firetail/Pteropuslylei/Model_tag_2268/"
+bats <- list.files(path, pattern = "*.csv", 
                       full.names = FALSE)
 layout(1)
 k = 2
 time_offset <- 7*3600
 sampling_rate <- 18.74
-for(k in 2:length(studies)){
-  df <- fread(paste0(path,studies[k])) %>% clean_names()
+for(k in 2:length(bats)){
+  df <- fread(paste0(path,bats[k])) %>% clean_names()
   bats <- unique(df$tag_local_identifier)
-  plot(df$location_long, df$location_lat, asp = 1, col = df$tag_local_identifier)
-  # df$timestamp %>% ymd_hms %>% date %>% table
-  j = 1
-  for(j in 1:length(bats)){
-    bat <- df[df$tag_local_identifier == bats[j],]
-    with(bat[bat$sensor_type == "gps",], 
-         plot(timestamp, ground_speed, col = date(timestamp)))
-    dates <- bat$timestamp %>% ymd_hms %>% date %>% unique  
-    i=1
+    dates <- df$timestamp %>% ymd_hms %>% date %>% unique  
+    i=2
     for(i in 1:length(dates)){
-     d <- bat[which(date(ymd_hms(bat$timestamp)) == dates[i] & bat$sensor_type == "acceleration"),]
+     d <- df[which(date(ymd_hms(df$timestamp)) == dates[i]),]
       if(nrow(d) > 100){
         db <- foreach(ii = 1:nrow(d), .combine = rbind) %dopar% {
-          require(magrittr)
           temp <- {}
           x <- NA
           y <- NA
