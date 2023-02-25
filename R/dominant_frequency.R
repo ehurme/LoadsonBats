@@ -329,8 +329,11 @@ dominant_freq <- function(df,
             w_stable$peak_freq <- NA
             w_stable$peak_amp_diff <- NA # difference from 1st peak amplitude to 8th peak
             w_stable$amplitude <- NA
+            w_stable$firetail <- NA
             # jj = which.max(w_stable$length)
             for(jj in 1:nrow(w_stable)){
+              tf <- table(db$firetail[df_stable$from[jj]:df_stable$to[jj]])
+              w_stable$firetail[jj] <- names(tf[which.max(tf)])
               if(stable_var$length[jj] > 1){
                 # filter short periods
                 if(difftime(db$time[df_stable$to[jj]],db$time[df_stable$from[jj]], units = "mins") > min_seg_duration){
