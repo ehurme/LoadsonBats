@@ -1,32 +1,36 @@
 ## function to get the dominant frequency from ACC data during commutes
 
 # df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
-df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
-#
+# df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
+df <- fread("./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/individual_Mviv19_10-annotated-bursts-gps.csv")
 # calculate sunset and sunrise
 # add wavelet
-save_path = "./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/Wingbeats/PCA/"
-tag_id <- "7CDA644"
+save_path = "./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/Wingbeats/PCA/"
+tag_id <- "Mviv19_10"
 Burst = TRUE
 PCA = TRUE
-sampling_rate = 25 # P. hastatus
+sampling_rate = 50
+  # P. hastatus 25
   # P. lylei 18.74
   # R. aegyptiacus 50
 min_freq = 2
-max_freq = 8  # 4
-wavelet = TRUE
+max_freq = 16 #8  # 4
+wavelet = FALSE
 saved_cores = 4
-gps = FALSE
+gps = TRUE
 min_seg_duration = 10
 dfreq_threshold = 20
 use_FFT = TRUE
 use_wavelet = FALSE
-tag_type = "eObs" # "wildfi"
-tad_id <- NULL
-firetail = TRUE
+tag_type = "eObs"
+  # "eObs" # "wildfi"
+firetail = FALSE
 firetail_filter = FALSE
 solar_time = TRUE
-save_files = FALSE
+save_files = TRUE
+location = "Mexico"
+var_seg = TRUE # segment the acc by variation
+sd_adjust = 1 # how many standard deviations above the mean should the variation threshold be?
 
 # Burst
 # PCA
@@ -37,7 +41,7 @@ save_files = FALSE
 # wavelet
 # gps - is there gps data and should we plot it?
 # saved_cores
-time <- dmy_hms(df$utcDate)
+time <- {}
 dominant_freq <- function(df,
                           save_path = NULL,
                           tag_id = NULL,
@@ -88,20 +92,30 @@ dominant_freq <- function(df,
   }})
 
   if(length(df$timestamp) == 0){
-    if(length(time) > 0){
-      df$timestamp <- time
+    # if(length(time) > 0){
+    #   df$timestamp <- time
+    # }
+    if(length(df$`sample-timestamp`) > 0){
+      df$timestamp <- df$`sample-timestamp`
     }
-    else{
-      df$timestamp <- NULL
-    }
+    # else{
+    #   df$timestamp <- NULL
+    # }
   }
-  d <- unique(date(df$timestamp))
-  data <- data.frame(date = d, lat = median(df$location_lat, na.rm = TRUE),
-                     lon = median(df$location_long, na.rm = TRUE))
-  sun <- suncalc::getSunlightTimes(data = data)
-  moon <- suncalc::getMoonTimes(data = data)
+  dates <- unique(date(df$timestamp))
 
-  df$solar_time <- df$timestamp - hour(sun$solarNoon[1])*60*60
+  if(solar_time == TRUE){
+    try(data <- data.frame(date = dates, lat = median(df$location_lat, na.rm = TRUE),
+                       lon = median(df$location_long, na.rm = TRUE)))
+    if(location == "Mexico"){
+      data <- data.frame(date = dates, lat = 29,
+                         lon = -113)
+    }
+    sun <- suncalc::getSunlightTimes(data = data)
+    moon <- suncalc::getMoonTimes(data = data)
+    df$solar_time <- df$timestamp - hour(sun$solarNoon[1])*60*60
+  }
+
   i = 1
   for(i in 1:length(bats)){
     full_path <- paste0(save_path, tag_id, "/")
@@ -112,7 +126,7 @@ dominant_freq <- function(df,
     bdf <- df[df$id == bats[i],]
     dates <- unique(date(bdf$solar_time))
     # date(ymd_hms(bdf$timestamp)) %>% table
-    j = 3
+    j = 1
     for(j in 1:length(dates)){
       d <- bdf[which(date(ymd_hms(bdf$solar_time)) == dates[j]),]
 
@@ -122,50 +136,54 @@ dominant_freq <- function(df,
         lat <- d$location_lat
         gps_time <- d$timestamp
         # get sunrise and sunset times
-        try({
-          layout(rbind(c(1, 2), c(1, 3)))
-          par(mar = c(0, 4, 0, 0), oma = c(4, 0, 4, 4), xpd = NA)
-          plot(lon, lat, asp = 1, type = "o", pch = 19, cex = 0.5)
-          if(firetail == TRUE){
-            commuting_idx <- which(d$annotation_layer_commuting != "" & d$type == "gps")
-            foraging_idx <- which(d$annotation_layer_foraging != "" & d$type == "gps")
-            resting_idx <- which(d$annotation_layer_resting != "" & d$type == "gps")
-            with(d[commuting_idx,], points(location_long, location_lat, col = "green"))
-            with(d[foraging_idx,], points(location_long, location_lat, col = "red"))
-            with(d[resting_idx,], points(location_long, location_lat, col = "blue"))
-            legend("topleft", legend = c("commuting", "foraging", "resting"),
-                   col = c("green", "red", "blue"), pch = 16)
-          }
-          plot(gps_time, lon, type = "o", pch = 19, cex = 0.5,
-               xlab = "", xaxt = "none",
-               xlim = c(gps_time[1]-3*3600,
-                        gps_time[length(gps_time)]+3*3600))
+        if(any(!is.na(lon))){
+          try({
+            png(file = paste0(full_path, "GPS_", bats[i],"_", dates[j], ".png"))
+            layout(rbind(c(1, 2), c(1, 3)))
+            par(mar = c(0, 4, 0, 0), oma = c(4, 0, 4, 4), xpd = NA)
+            plot(lon, lat, asp = 1, type = "o", pch = 19, cex = 0.5)
+            if(firetail == TRUE){
+              commuting_idx <- which(d$annotation_layer_commuting != "" & d$type == "gps")
+              foraging_idx <- which(d$annotation_layer_foraging != "" & d$type == "gps")
+              resting_idx <- which(d$annotation_layer_resting != "" & d$type == "gps")
+              with(d[commuting_idx,], points(location_long, location_lat, col = "green"))
+              with(d[foraging_idx,], points(location_long, location_lat, col = "red"))
+              with(d[resting_idx,], points(location_long, location_lat, col = "blue"))
+              legend("topleft", legend = c("commuting", "foraging", "resting"),
+                     col = c("green", "red", "blue"), pch = 16)
+            }
+            plot(gps_time, lon, type = "o", pch = 19, cex = 0.5,
+                 xlab = "", xaxt = "none",
+                 xlim = c(gps_time[1]-3*3600,
+                          gps_time[length(gps_time)]+3*3600))
 
-          lines(gps_time, lon)
-          if(firetail == TRUE){
-            with(d[commuting_idx,], points(timestamp, location_long, col = "green"))
-            with(d[foraging_idx,], points(timestamp, location_long, col = "red"))
-            with(d[resting_idx,], points(timestamp, location_long, col = "blue"))
-          }
-          abline(v = sun$sunset, col = "blue", xpd = FALSE)
-          abline(v = sun$sunrise, col = "orange", xpd = FALSE)
-          plot(gps_time, lat, type = "o", pch = 19, cex = 0.5,
-               xlim = c(gps_time[1]-3*3600,
-                        gps_time[length(gps_time)]+3*3600))
-          lines(gps_time, lat)
-          if(firetail == TRUE){
-            with(d[commuting_idx,], points(timestamp, location_lat, col = "green"))
-            with(d[foraging_idx,], points(timestamp, location_lat, col = "red"))
-            with(d[resting_idx,], points(timestamp, location_lat, col = "blue"))
-          }
-          abline(v = sun$sunset, col = "blue", xpd = FALSE)
-          abline(v = sun$sunrise, col = "orange", xpd = FALSE)
-          legend("bottomright", legend = c("sunset", "sunrise"), col = c("blue", "orange"), lty = 1)
-          # get speed
+            lines(gps_time, lon)
+            if(firetail == TRUE){
+              with(d[commuting_idx,], points(timestamp, location_long, col = "green"))
+              with(d[foraging_idx,], points(timestamp, location_long, col = "red"))
+              with(d[resting_idx,], points(timestamp, location_long, col = "blue"))
+            }
+            abline(v = sun$sunset, col = "blue", xpd = FALSE)
+            abline(v = sun$sunrise, col = "orange", xpd = FALSE)
+            plot(gps_time, lat, type = "o", pch = 19, cex = 0.5,
+                 xlim = c(gps_time[1]-3*3600,
+                          gps_time[length(gps_time)]+3*3600))
+            lines(gps_time, lat)
+            if(firetail == TRUE){
+              with(d[commuting_idx,], points(timestamp, location_lat, col = "green"))
+              with(d[foraging_idx,], points(timestamp, location_lat, col = "red"))
+              with(d[resting_idx,], points(timestamp, location_lat, col = "blue"))
+            }
+            abline(v = sun$sunset, col = "blue", xpd = FALSE)
+            abline(v = sun$sunrise, col = "orange", xpd = FALSE)
+            legend("bottomright", legend = c("sunset", "sunrise"), col = c("blue", "orange"), lty = 1)
+            dev.off()
+            # get speed
 
-          # label commutes
-          ## first passage time?
-        })
+            # label commutes
+            ## first passage time?
+          })
+        }
       }
       x <- {}
       y <- {}
@@ -176,6 +194,8 @@ dominant_freq <- function(df,
         burst <- {}
 
         if(nrow(d) > 100){
+          ii = 1
+          temp_df <- data.frame()
           db <- foreach(ii = 1:nrow(d), .combine = rbind) %dopar% {
             require(magrittr)
             temp <- {}
@@ -205,7 +225,7 @@ dominant_freq <- function(df,
               time <- format(temp_time, "%Y-%m-%d %H:%M:%OS3") %>% as.character
               burst <- rep(ii, length(time))
             }
-            temp <- data.frame(x,y,z,time,burst)
+            temp_df <- data.frame(x,y,z,time,burst)
           }
           db <- na.omit(db)
           db$time <- ymd_hms(db$time)
@@ -242,28 +262,36 @@ dominant_freq <- function(df,
         y <- df$ACCY
         z <- df$ACCZ
         time <- df$time
+        if(length(x) == 0){
+          x <- df$`acceleration-x`
+          y <- df$`acceleration-y`
+          z <- df$`acceleration-z`
+          time <- df$timestamp
+        }
       }
       if(length(x) > 1){
         # pca
-        if(PCA == TRUE){
-          try({
-            pc <- prcomp(cbind(x, y, z), scale. = FALSE)
-            w <- Wave(left = pc$x[,1], samp.rate = sampling_rate, bit = 16)
+        png(file = paste0(full_path, "FullSpectro_", bats[i],"_", dates[j], ".png"))
+          if(PCA == TRUE){
+            try({
+              pc <- prcomp(cbind(x, y, z), scale. = FALSE)
+              w <- Wave(left = pc$x[,1], samp.rate = sampling_rate, bit = 16)
+              wf <- ffilter(w, f= sampling_rate, from = min_freq, to = max_freq, bandpass = TRUE)
+              spectro(wf, f = sampling_rate, wl = 1024*4, ovlp = 50, fastdisp = TRUE)
+              # add sunrise and sunset?
+            })
+
+          }
+          if(PCA == FALSE){
+            # create wave form
+            w <- Wave(left = z, samp.rate = sampling_rate, bit = 16)
             wf <- ffilter(w, f= sampling_rate, from = min_freq, to = max_freq, bandpass = TRUE)
             spectro(wf, f = sampling_rate, wl = 1024*4, ovlp = 50, fastdisp = TRUE)
-            # add sunrise and sunset?
-          })
-
-        }
-        if(PCA == FALSE){
-          # create wave form
-          w <- Wave(left = z, samp.rate = sampling_rate, bit = 16)
-          wf <- ffilter(w, f= sampling_rate, from = min_freq, to = max_freq, bandpass = TRUE)
-          spectro(wf, f = sampling_rate, wl = 1024*4, ovlp = 50, fastdisp = TRUE)
-        }
-        par(new=TRUE)
-        pf <- dfreq(wf, f=sampling_rate, wl = 1024*4, ovlp=75, threshold=dfreq_threshold,
-                    type="l", col="red", lwd=0.5, xlab = "", ylab = "")
+          }
+          par(new=TRUE)
+          pf <- dfreq(wf, f=sampling_rate, wl = 1024*4, ovlp=75, threshold=dfreq_threshold,
+                      type="l", col="red", lwd=0.5, xlab = "", ylab = "")
+        dev.off()
 
         # get segments where wing beat can be estimated
         idx <- which(!is.na(pf[,2])) -1
@@ -271,21 +299,31 @@ dominant_freq <- function(df,
         stable_var$diff <- NA
 
         # if track is all one segment, divide track by variation in wingbeat
-        if(nrow(stable_var) < 2){
+        ## or if you manually want to divide by track by variation
+        if(nrow(stable_var) < 2 | var_seg == TRUE){
           # divide track by variation in freq
           pf_var <- roll_var(pf[,2], width = 10)
-          hist(pf_var, breaks = 300)
+          if(any(!is.na(pf_var))){
+            png(file = paste0(full_path, "VarSeg_", bats[i],"_", dates[j], ".png"),
+                height = 600, width = 1000)
+            layout(cbind(1,2))
+            hist(pf_var, breaks = 300, main = "")
 
-          big <- 1000000
-          c <- Mclust((pf_var %>% na.omit)*big, G = 2)
-          # plot(c, what = "density")
-          thresh <- c$parameters$mean[1]/big + 4*sqrt(c$parameters$variance$sigmasq[1])/big
+            big <- 1000000
+            c <- Mclust((pf_var %>% na.omit)*big, G = 2)
+            # plot(c, what = "density")
+            thresh <- c$parameters$mean[1]/big + sd_adjust*sqrt(c$parameters$variance$sigmasq[1])/big
+            abline(v = thresh, col = 2)
+            #layout(1)
+            # plot(pf_var, col = (pf_var > thresh)+1)
+            plot(pf, col = (pf_var < thresh)+1, pch = 16)
 
-          layout(1)
-          # plot(pf_var, col = (pf_var > thresh)+1)
-          plot(pf, col = (pf_var < thresh)+1)
-          idx <- which(pf_var < thresh)
-          stable_var <- seqToIntervals(idx) %>% as.data.frame
+            idx <- which(pf_var < thresh)
+            stable_var <- seqToIntervals(idx) %>% as.data.frame
+            abline(v = pf[stable_var$from])
+            abline(v = pf[stable_var$to], col = "orange")
+            dev.off()
+          }
         }
 
         ## join periods that are less than # samples apart
@@ -332,8 +370,10 @@ dominant_freq <- function(df,
             w_stable$firetail <- NA
             # jj = which.max(w_stable$length)
             for(jj in 1:nrow(w_stable)){
-              tf <- table(db$firetail[df_stable$from[jj]:df_stable$to[jj]])
-              w_stable$firetail[jj] <- names(tf[which.max(tf)])
+              if(firetail == TRUE){
+                tf <- table(db$firetail[df_stable$from[jj]:df_stable$to[jj]])
+                w_stable$firetail[jj] <- names(tf[which.max(tf)])
+              }
               if(stable_var$length[jj] > 1){
                 # filter short periods
                 if(difftime(db$time[df_stable$to[jj]],db$time[df_stable$from[jj]], units = "mins") > min_seg_duration){
@@ -359,7 +399,9 @@ dominant_freq <- function(df,
                   dev.off()
                   spec <- meanspec(wf_cut, f=sampling_rate, plot = FALSE)
                   layout(1)
-                  peak <- fpeaks(spec, nmax = 8)
+                  png(file = paste0(full_path, "fpeaks_", bats[i],"_", dates[j],"_segment_", jj, ".png"))
+                    peak <- fpeaks(spec, nmax = 8)
+                  dev.off()
                   pidx <- which(peak[,1] > 0.0025)
                   midx <- which.max(peak[pidx,2])
                   w_stable$peak_freq[jj] <- peak[pidx[midx],1]
@@ -410,50 +452,74 @@ dominant_freq <- function(df,
           })
         }
 
-        try({
-          png(filename = paste0(full_path, "Domfreq_segments_",  bats[i], "_", dates[j],".png"))
-          layout(1)
-          xlab = "time (UTC)"
-          if(solar_time == TRUE){
-            xlab = "Time since solar noon"
-          }
-          if(firetail == TRUE){
-            w_stable$firetail <- factor(w_stable$firetail,
-                                        levels = c("c", "f", "r"))
-            plot(x = ymd_hms(db$time[df_stable$from]), y = w_stable$peak_freq*1000,
-                 cex = 2*scales::rescale(w_stable$amplitude),
-                 pch = 16,
-                 col = w_stable$firetail,
-                 xlab = xlab, ylab = "dominant wingbeat frequency (Hz)")
-          }
-          if(firetail == FALSE){
-            plot(x = ymd_hms(db$time[df_stable$from]), y = w_stable$peak_freq*1000,
-                 cex = 2*scales::rescale(w_stable$amplitude),
-                 pch = 16,
-                 col = 2,
-                 xlab = xlab, ylab = "dominant wingbeat frequency (Hz)")
-          }
-          segments(x0 = ymd_hms(db$time[df_stable$from]),
-                   y0 = w_stable$peak_freq*1000,
-                   x1 = ymd_hms(db$time[df_stable$to]),
-                   y1 = w_stable$peak_freq*1000)
-          if(solar_time == TRUE){
-            abline(v = sun$sunset - hour(sun$solarNoon[1])*3600, col = "blue")
-            abline(v = sun$sunrise - hour(sun$solarNoon[1])*3600, col = "orange")
-          }
-          if(solar_time == FALSE){
-            abline(v = sun$sunset, col = "blue")
-            abline(v = sun$sunrise, col = "orange")
-          }
-          if(firetail == TRUE){
-            legend("topright", legend = c("commuting", "foraging", "resting"),
-                   col = c(1:3), pch = 16)
-          }
-          dev.off()
-        })
+        if(any(!is.na(w_stable$peak_freq))){
+          try({
+            png(filename = paste0(full_path, "Domfreq_segments_",  bats[i], "_", dates[j],".png"))
+            layout(1)
+            xlab = "time (UTC)"
+            if(solar_time == TRUE){
+              xlab = "Time since solar noon"
+            }
+            if(firetail == TRUE){
+              w_stable$firetail <- factor(w_stable$firetail,
+                                          levels = c("c", "f", "r"))
+              plot(x = ymd_hms(db$time[df_stable$from]), y = w_stable$peak_freq*1000,
+                   cex = 2*scales::rescale(w_stable$amplitude)+1,
+                   pch = 16,
+                   col = w_stable$firetail,
+                   xlab = xlab, ylab = "dominant wingbeat frequency (Hz)")
+            }
+            if(firetail == FALSE){
+              plot(x = ymd_hms(db$time[df_stable$from]), y = w_stable$peak_freq*1000,
+                   cex = 2*scales::rescale(w_stable$amplitude),
+                   pch = 16,
+                   col = 2,
+                   xlab = xlab, ylab = "dominant wingbeat frequency (Hz)")
+            }
+            segments(x0 = ymd_hms(db$time[df_stable$from]),
+                     y0 = w_stable$peak_freq*1000,
+                     x1 = ymd_hms(db$time[df_stable$to]),
+                     y1 = w_stable$peak_freq*1000)
+            if(solar_time == TRUE){
+              abline(v = sun$sunset - hour(sun$solarNoon[1])*3600, col = "blue")
+              abline(v = sun$sunrise - hour(sun$solarNoon[1])*3600, col = "orange")
+            }
+            if(solar_time == FALSE){
+              abline(v = sun$sunset, col = "blue")
+              abline(v = sun$sunrise, col = "orange")
+            }
+            if(firetail == TRUE){
+              legend("topright", legend = c("commuting", "foraging", "resting"),
+                     col = c(1:3), pch = 16)
+            }
+            dev.off()
+          })
+        }
 
         if(save_files == TRUE){
-          save(db, w, wf, pf, sampling_rate, stable_var, w_stable, df_stable,
+          save(db, w, wf, pf, sampling_rate, stable_var, w_stable, df_stable, bats, dates,
+               save_path,
+               tag_id,
+               Burst,
+               PCA,
+               sampling_rate,
+               min_freq,
+               max_freq,
+               wavelet,
+               saved_cores,
+               gps,
+               min_seg_duration,
+               dfreq_threshold,
+               use_FFT,
+               use_wavelet,
+               tag_type,
+               firetail,
+               firetail_filter,
+               solar_time,
+               save_files,
+               location,
+               var_seg,
+               sd_adjust,
                file = paste0(full_path, bats[i], "_", dates[j],"_wingbeatfreq.robj"))
         }
       }
