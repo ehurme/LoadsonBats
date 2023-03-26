@@ -2,11 +2,11 @@
 
 # df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
 # df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
-df <- fread("./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/individual_Mviv19_10-annotated-bursts-gps.csv")
+df <- fread("./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/individual_Mviv19_18-annotated-bursts-gps.csv")
 # calculate sunset and sunrise
 # add wavelet
 save_path = "./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/Wingbeats/PCA/"
-tag_id <- "Mviv19_10"
+tag_id <- "Mviv19_18"
 Burst = TRUE
 PCA = TRUE
 sampling_rate = 50
@@ -16,7 +16,7 @@ sampling_rate = 50
 min_freq = 2
 max_freq = 16 #8  # 4
 wavelet = FALSE
-saved_cores = 4
+saved_cores = 20
 gps = TRUE
 min_seg_duration = 10
 dfreq_threshold = 20
@@ -61,7 +61,10 @@ dominant_freq <- function(df,
                           firetail = TRUE,
                           firetail_filter = FALSE,
                           solar_time = TRUE,
-                          save_files = TRUE){
+                          save_files = TRUE,
+                          location = "Mexico",
+                          var_seg = TRUE,
+                          sd_adjust = 1){
   # load libraries
   ## utilities
   require(pacman)

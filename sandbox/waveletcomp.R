@@ -1,10 +1,9 @@
 library(WaveletComp)
 1000/25
-x = periodic.series(start.period = 10, length = 20000)
+x = periodic.series(start.period = 10, length = 1000)
 x = x + 0.2*rnorm(length(x)) # add some noise
+layout(1)
 plot(x, type = "l")
-
-
 
 my.data <- data.frame(x = x, date = (1:length(x)/50))
 levels <- 1000
@@ -36,11 +35,35 @@ plot(my.w$Period[apply(my.w$Ridge,2,which.max)], pch = 16, col = rgb(0,0,0,.1))
 lines(WT$coi.1, 2^WT$coi.2)
 points(idx, my_freq[idx])
 
-hist(my.w$Period[apply(my.w$Ridge,2,which.max)][idx])
+density(my.w$Period[apply(my.w$Ridge,2,which.max)][idx]) %>% plot
 summary(my.w$Period[apply(my.w$Ridge,2,which.max)][idx])
 summary(my_freq[idx])
 
 #### real data
+##### P. lylei
+temp <- db[db$burst == 200,]
+pl.data <- data.frame(x = temp$z, date = temp$time)
+pl.pc <- prcomp(with(temp, cbind(x, y, z)) |> na.omit(), scale. = FALSE)
+pl.w <- Wave(left = pl.pc$x[,1], samp.rate = 18.74, bit = 16)
+plot(pl.w)
+# pl.wf <- ffilter(pl.w, f = 18.74, from = 2, to = 8, bandpass = TRUE)
+spectro(pl.w, f = 18.74, wl = 16, ovlp = 75, fastdisp = TRUE)
+
+
+levels <- 1000
+pl.wl <- analyze.wavelet(pl.data, "x",
+                        loess.span = 0,
+                        dt = 1,
+                        dj = 1/levels,
+                        lowerPeriod = 2,
+                        upperPeriod = 16,
+                        make.pval = TRUE,
+                        n.sim = 10)
+layout(1)
+wt.image(pl.wl, color.key = "quantile", n.levels = levels, col.ridge = "purple",
+         legend.params = list(lab = "wavelet power levels", mar = 4.7))
+
+
 ##### Cyprus
 
 w <- Wave(left = db$z, samp.rate = sampling_rate, bit = 16)
