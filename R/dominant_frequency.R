@@ -2,11 +2,11 @@
 
 # df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
 # df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
-df <- fread("./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/individual_Mviv19_10-annotated-bursts-gps.csv")
+df <- fread("./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/individual_Mviv19_18-annotated-bursts-gps.csv")
 # calculate sunset and sunrise
 # add wavelet
 save_path = "./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/Wingbeats/PCA/"
-tag_id <- "Mviv19_10"
+tag_id <- "Mviv19_18"
 Burst = TRUE
 PCA = TRUE
 sampling_rate = 50
