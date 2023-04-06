@@ -1,10 +1,9 @@
 library(WaveletComp)
 1000/25
-x = periodic.series(start.period = 10, length = 20000)
+x = periodic.series(start.period = 10, length = 1000)
 x = x + 0.2*rnorm(length(x)) # add some noise
+layout(1)
 plot(x, type = "l")
-
-
 
 my.data <- data.frame(x = x, date = (1:length(x)/50))
 levels <- 1000
@@ -36,11 +35,71 @@ plot(my.w$Period[apply(my.w$Ridge,2,which.max)], pch = 16, col = rgb(0,0,0,.1))
 lines(WT$coi.1, 2^WT$coi.2)
 points(idx, my_freq[idx])
 
-hist(my.w$Period[apply(my.w$Ridge,2,which.max)][idx])
+density(my.w$Period[apply(my.w$Ridge,2,which.max)][idx]) %>% plot
 summary(my.w$Period[apply(my.w$Ridge,2,which.max)][idx])
 summary(my_freq[idx])
 
 #### real data
+##### P. lylei
+sampling_rate = 18.74
+
+db$burst[which(db$behavior == "commuting")] %>% unique
+temp <- db[db$burst == 290,]
+             #287,]
+pl.data <- data.frame(x = temp$z, date = temp$time)
+pl.pc <- prcomp(with(temp, cbind(x, y, z)) |> na.omit(), scale. = FALSE)
+pl.w <- Wave(left = pl.pc$x[,1], samp.rate = sampling_rate, bit = 16)
+plot(pl.w)
+# pl.wf <- ffilter(pl.w, f = sampling_rate, from = 2, to = 8, bandpass = TRUE)
+spectro(pl.w, f = sampling_rate, wl = 16, ovlp = 75, fastdisp = TRUE)
+dev.off()
+spec <- meanspec(pl.w, f=sampling_rate, plot = TRUE)
+peaks <- fpeaks(spec, nmax = 8)
+peaks <- unlist(peaks[order(peaks[,2], decreasing = TRUE),])
+peaks <- cbind(peaks, diff = c(NA, diff(peaks[,2])))
+peaks
+
+levels <- 1000
+pl.wl <- analyze.wavelet(pl.data, "x",
+                        loess.span = 0,
+                        dt = 1/sampling_rate,
+                        dj = 1/levels,
+                        lowerPeriod = 2,
+                        upperPeriod = 4,
+                        make.pval = TRUE,
+                        n.sim = 10)
+wt.image(pl.wl, color.key = "quantile", n.levels = levels, col.ridge = "purple",
+         legend.params = list(lab = "wavelet power levels", mar = 4.7))
+my_freq <- pl.wl$Period[apply(pl.wl$Power,2,which.max)]
+# plot(my_freq)
+
+# remove points outside the coi
+my_coi <- 2^pl.wl$coi.2[3:(length(pl.wl$coi.2)-2)]
+
+idx <- which(my_freq < my_coi)
+plot(my_freq[idx])
+
+ridge <- pl.wl$Ridge
+rownames(ridge) <- pl.wl$axis.2
+colnames(ridge) <- pl.wl$axis.1
+ridge[which(ridge == 0)] <- NA
+table(ridge)
+
+image(t(ridge), col = 1)
+plot(pl.wl$axis.1,
+     pl.wl$Period[apply(pl.wl$Ridge,2,which.max)],
+     type = "l")
+     pch = 16, col = rgb(0,0,0,.1))
+lines(pl.wl$coi.1, 2^pl.wl$coi.2)
+points(idx, my_freq[idx])
+
+# hist(my.wC$Period[apply(my.wC$Ridge,2,which.max)][idx])
+# summary(my.wC$Period[apply(my.wC$Ridge,2,which.max)][idx])
+summary(my_freq[idx])
+c <- data.frame(freqs = my_freq[idx], burst = b, time = t1[1])
+cfreq <- rbind(cfreq, c)
+
+
 ##### Cyprus
 
 w <- Wave(left = db$z, samp.rate = sampling_rate, bit = 16)

@@ -10,12 +10,12 @@ editor_options:
 # load libraries
 ```{r}
 library(pacman)
-p_load(tidyverse, magrittr, dplyr, plyr, data.table,
+p_load(tidyverse, dplyr, plyr, data.table,
        lubridate, janitor, ggplot2, zoo, roll, R.utils,
        mclust,
        av, seewave, tuneR, phonTools, soundgen, # acoustic analysis
-       foreach, doParallel # parallel processing
-       )
+       foreach, doParallel, # parallel processing
+       magrittr)
 op <- options(digits.secs=3)
 ```
 
@@ -31,7 +31,7 @@ registerDoParallel(cl)
 ## Pteropus lylei
 
 ```{r}
-path <- "./../../../OwnCloud/Firetail/Pteropuslylei/Model_tag_2268/"
+path <- "../../../../OwnCloud/Firetail/Pteropuslylei/Model_tag_2268/"
 bats <- list.files(path, pattern = "*.csv", 
                       full.names = FALSE)
 layout(1)
@@ -46,6 +46,7 @@ for(k in 2:length(bats)){
     for(i in 1:length(dates)){
      d <- df[which(date(ymd_hms(df$timestamp)) == dates[i]),]
       if(nrow(d) > 100){
+        ii = 1
         db <- foreach(ii = 1:nrow(d), .combine = rbind) %dopar% {
           temp <- {}
           x <- NA
@@ -53,9 +54,9 @@ for(k in 2:length(bats)){
           z <- NA
           time <- NA
           burst <- NA
-          temp <- d$eobs_accelerations_raw[ii] %>% strsplit(" ") %>% 
-            unlist %>% 
-            as.numeric
+          temp <- d$eobs_accelerations_raw[ii] |> strsplit(" ") |> 
+            unlist() |> 
+            as.numeric()
           if(length(temp) > 0){
             x <- temp[seq(1, length(temp), 3)]
             y <- temp[seq(2, length(temp), 3)]
@@ -63,13 +64,17 @@ for(k in 2:length(bats)){
             temp_time <- seq.POSIXt(from = d$timestamp[ii], 
                                      to = d$timestamp[ii]+length(temp)/sampling_rate/3, 
                                      length.out = length(temp)/3)
-            time <- format(temp_time, "%Y-%m-%d %H:%M:%OS3") %>% as.character
-            burst <- rep(ii, length(temp))
+            time <- format(temp_time, "%Y-%m-%d %H:%M:%OS3") |> as.character()
+            burst <- rep(ii, length(temp_time))
           }
-          temp <- data.frame(x,y,z,time,burst)
+          b <- data.frame(x,y,z,time,burst)
         }
       db <- na.omit(db)
       db$time <- ymd_hms(db$time)
+      db$behavior <- NA
+      db$behavior[which(db$burst %in% which(d$annotation_layer_commuting != ""))] <- "commuting"
+      db$behavior[which(db$burst %in% which(d$annotation_layer_foraging != ""))] <- "foraging"
+      db$behavior[which(db$burst %in% which(d$annotation_layer_resting != ""))] <- "resting"
       # remove points after sunrise
       # db <- db[#db$time > ymd_hms(paste0(dates[j]-1, " ", "23:00:00")) &
       #         db$time < ymd_hms(paste0(dates[i], " ", "12:00:00")),]
