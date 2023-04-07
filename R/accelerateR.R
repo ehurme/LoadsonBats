@@ -1,3 +1,8 @@
+# AccelerateR loop to extract fft and params from acceleration data
+# Edward Hurme
+# 7/4/23
+
+
 # devtools::install_github("wanjarast/accelerateR")
 
 library(pacman)
@@ -14,6 +19,10 @@ bats <- sapply(strsplit(files, split = "-"), '[', 1)
 i=2
 for(i in 1:length(files)){
   print(bats[i])
+  if(!exists(paste0(path, "accelerateR"))){
+    dir.create(paste0(path, "accelerateR"))
+  }
+
   df <- fread(paste0(path, files[i]))
   df$tag_local_identifier <- bats[i]
   ACC <- {}
@@ -51,59 +60,11 @@ for(i in 1:length(files)){
   freqs$frequency <- freqs$freq/freqs$duration_of_burst
   png(file = paste0(path, "/accelerateR/wingbeat_", bats[i], ".png"),
       width = 800, height = 600)
-    with(freqs, plot(time, frequency, cex = 2*amp/max(amp, na.rm = TRUE),
-                     pch = 1, main = bats[i]))
+  with(freqs, plot(time, frequency, cex = 2*amp/max(amp, na.rm = TRUE),
+                   pch = 1, main = bats[i]))
   dev.off()
   sum_acc <- sum_data(ACC, time = "timestamp", x="x" ,
                       y="y" , z="z" , stats = "all",
                       behaviour = "behavior")
   save(sum_acc, freqs, file = paste0(path, "accelerateR/", bats[i], ".robj"))
 }
-
-  # acto(data = ACC, time = "timestamp", behaviour = "behavior" , target_bev = c("commuting"),
-#      sun = T, long = 100, lat = 14, daily = TRUE)
-
-###############################################################################################
-
-# psych::pairs.panels(sum_acc[,c("behavior", "ODBA", "meanz", "sdz", "maxz", "minz", "rangez", "covyz", "coryz")])
-# psych::pairs.panels(sum_acc[,c("behavior", "ODBA", "sddyz", "mdocpz", "sdocpz", "varz", "q")])
-# psych::pairs.panels(sum_acc[,c("behavior", "ODBA","Pitch", "ICVz", "CVz", "Kurtosisz", "Skewnessz")])
-
-table(sum_acc$behavior)
-
-
-
-# join more bats together to increase sample size
-acc.rf <- randomForest::randomForest(behavior~., data = sum_acc[sum_acc$behavior != "foraging",],
-                                     importance = TRUE, proximity = TRUE)
-
-# 75% IQR index
-iqr75_idx <- which(quantile(sum_acc$ODBA)[4] < sum_acc$ODBA |
-             quantile(sum_acc$meanz)[4] < sum_acc$meanz |
-             quantile(sum_acc$varz)[4] < sum_acc$varz )
-median_sd_idx <- which((quantile(sum_acc$ODBA)[3]+sd(sum_acc$ODBA)) < sum_acc$ODBA |
-                         (quantile(sum_acc$meanz)[3]+sd(sum_acc$meanz)) < sum_acc$meanz |
-                         (quantile(sum_acc$varz)[3]+sd(sum_acc$varz)) < sum_acc$varz )
-sum_acc$ODBA %>% plot()
-sum_acc$ODBA[median_sd_idx] %>% points(median_sd_idx, ., col = 2)
-
-sum_acc$ODBA %>% plot(col = (quantile(sum_acc$ODBA)[4] < sum_acc$ODBA)+1)
-sum_acc$meanz %>% plot
-sum_acc$varz %>% plot(col = (quantile(sum_acc$varz)[4] < sum_acc$varz)+1)
-
-
-sum_acc$Pitch %>% plot
-sum_acc$Roll %>% plot
-sum_acc$Yaw %>% plot
-
-names(sum_acc)
-
-
-sum_acc$varz %>% hist(breaks = 1000, xlim = c(0,10000))
-
-
-acceleration <- data.frame(time = rep(seq(5),each=20) , x = runif(n = 100,min = 1900,max=2100) ,
-                           y = runif(n = 100,min = 2100,max=2300) , z = runif(n = 100,min = 1800,max=2000))
-
-sumstats <- sum_data(data=acceleration , time="time" , x="x" ,
-                     y="y" , z="z" , stats="all")
