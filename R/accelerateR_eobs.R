@@ -13,14 +13,14 @@ p_load(data.table, janitor, accelerateR, move)
 #                   id = "individual_local_identifier",
 #                   sample_frequency = "eobs_acceleration_sampling_frequency_per_axis",
 #                   naxes = 3, no_cores = 4)
-path <- "./../../../ownCloud/Firetail/Eidolonhelvum/Model_tag_2396/"
+path <- "./../../../ownCloud/Firetail/Pteropuslylei/Model_tag_2268/"
 files <- list.files(path, pattern = "*.csv")
 bats <- sapply(strsplit(files, split = "-"), '[', 1)
 if(!dir.exists(paste0(path, "accelerateR"))){
   dir.create(paste0(path, "accelerateR"))
 }
 i=2
-for(i in 6:length(files)){
+for(i in 1:length(files)){
   print(bats[i])
   df <- fread(paste0(path, files[i]))
   df$tag_local_identifier <- bats[i]
@@ -40,15 +40,21 @@ for(i in 6:length(files)){
                       each = burstcount)
   table(ACC$behavior)
   ## fast fourier transform
-  if(nrow(ACC[ACC$behavior == "commuting",]) > 0){
-    fft_acc <- sum_data(ACC[ACC$behavior == "commuting",], time = "timestamp",
+  if(nrow(ACC[ACC$behavior == "commuting" |
+              ACC$behavior == "foraging",]) > 0){
+    fft_acc <- sum_data(ACC[ACC$behavior == "commuting"|
+                              ACC$behavior == "foraging",], time = "timestamp",
                         burstcount = 792/3,
                         #x="x" , y="y" ,
                         z="z" ,
                         stats = "FFT")
 
     image(fft_acc[,3:133] %>% as.matrix)
-    freqs <- data.frame(time = df$timestamp[df$behavior == "commuting"], freq = NA, amp = NA)
+    freqs <- data.frame(time = df$timestamp[df$behavior == "commuting"|
+                                              df$behavior == "foraging"],
+                        freq = NA, amp = NA,
+                        behavior = df$behavior[df$behavior == "commuting"|
+                                      df$behavior == "foraging"])
     j <- 5
     for(j in 1:nrow(fft_acc)){
       # fft_acc[i,3:133] %>% as.numeric() %>% plot
@@ -61,18 +67,18 @@ for(i in 6:length(files)){
     freqs$frequency <- freqs$freq/freqs$duration_of_burst
     png(file = paste0(path, "/accelerateR/wingbeat_", bats[i], ".png"),
         width = 800, height = 600)
-    with(freqs, plot(time, frequency, cex = 2*amp/max(amp, na.rm = TRUE),
-                     pch = 1, main = bats[i]))
+      with(freqs, plot(time, frequency, cex = 2*amp/max(amp, na.rm = TRUE),
+                     pch = 1, main = bats[i], col = behavior %>% factor))
     dev.off()
   }
 
   sum_acc <- sum_data(ACC, time = "timestamp", x="x" ,
                       y="y" , z="z" , stats = "all",
                       behaviour = "behavior")
-  if(nrow(ACC[ACC$behavior == "commuting",]) > 0){
+  if(nrow(ACC[ACC$behavior == "commuting"|ACC$behavior == "foraging",]) > 0){
     save(sum_acc, freqs, file = paste0(path, "accelerateR/", bats[i], ".robj"))
   }
-  if(nrow(ACC[ACC$behavior == "commuting",]) == 0){
+  if(nrow(ACC[ACC$behavior == "commuting"|ACC$behavior == "foraging",]) == 0){
     save(sum_acc, file = paste0(path, "accelerateR/", bats[i], "_no_freq.robj"))
   }
 }
