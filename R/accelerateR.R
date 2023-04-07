@@ -13,22 +13,37 @@ p_load(data.table, janitor, accelerateR, move)
 #                   id = "individual_local_identifier",
 #                   sample_frequency = "eobs_acceleration_sampling_frequency_per_axis",
 #                   naxes = 3, no_cores = 4)
-path <- "./../../../ownCloud/Firetail/Eidolonhelvum/Model_tag_2396/"
+path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv17_60_model/"
 files <- list.files(path, pattern = "*.csv")
 bats <- sapply(strsplit(files, split = "-"), '[', 1)
 if(!dir.exists(paste0(path, "accelerateR"))){
   dir.create(paste0(path, "accelerateR"))
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> fcd149c0b3b79cb96ec763a21657313998dcee69
 i=2
 for(i in 6:length(files)){
   print(bats[i])
+<<<<<<< HEAD
+=======
+S
+
+>>>>>>> fcd149c0b3b79cb96ec763a21657313998dcee69
   df <- fread(paste0(path, files[i]))
   df$tag_local_identifier <- bats[i]
+  if(!any(names(df) %in% "timestamp"){
+    df$timestamp <- df$`sample-timestamp`
+  }
+  if(!any(names(df) %in% "timestamp"){
+    df$timestamp <- df$`sample-timestamp`
+  }
   ACC <- {}
   ACC <- move_trans(data =  df[df$type == "acc",], timestamp = "timestamp", acc = "eobs_accelerations_raw",
                     id = "tag_local_identifier",
                     sample_frequency = "eobs_acceleration_sampling_frequency_per_axis",
-                    naxes = 3, no_cores = 4)
+                    naxes = 3, no_cores = 20)
   burstcount = df$eobs_accelerations_raw[1] %>% strsplit(split = " ") %>% unlist %>% length/3
   count_test(ACC, burstcount)
 
@@ -68,6 +83,7 @@ for(i in 6:length(files)){
 
   sum_acc <- sum_data(ACC, time = "timestamp", x="x" ,
                       y="y" , z="z" , stats = "all",
+<<<<<<< HEAD
                       behaviour = "behavior")
   if(nrow(ACC[ACC$behavior == "commuting",]) > 0){
     save(sum_acc, freqs, file = paste0(path, "accelerateR/", bats[i], ".robj"))
@@ -75,4 +91,9 @@ for(i in 6:length(files)){
   if(nrow(ACC[ACC$behavior == "commuting",]) == 0){
     save(sum_acc, file = paste0(path, "accelerateR/", bats[i], "_no_freq.robj"))
   }
+=======
+                      behaviour = "behavior",
+                      burstcount = burstcount, id = bats[i])
+  save(sum_acc, freqs, file = paste0(path, "accelerateR/", bats[i], ".robj"))
+>>>>>>> fcd149c0b3b79cb96ec763a21657313998dcee69
 }
