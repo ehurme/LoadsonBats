@@ -13,7 +13,10 @@ p_load(data.table, janitor, accelerateR, move)
 #                   id = "individual_local_identifier",
 #                   sample_frequency = "eobs_acceleration_sampling_frequency_per_axis",
 #                   naxes = 3, no_cores = 4)
+path <- "./../../../ownCloud/Firetail/Acerodonjubatus/tag_1521/"
 path <- "./../../../ownCloud/Firetail/Pteropuslylei/Model_tag_2268/"
+path <- "../../../ownCloud/Firetail/Eidolonhelvum/Model_tag_2396/"
+
 files <- list.files(path, pattern = "*.csv")
 bats <- sapply(strsplit(files, split = "-"), '[', 1)
 if(!dir.exists(paste0(path, "accelerateR"))){

@@ -1,0 +1,43 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-02-25"
+---
+
+```{r}
+source("./R/dominant_frequency.R")
+```
+
+
+Phast
+```{r}
+
+bats <- list.files("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/", 
+                   pattern = "*gps.csv", full.names = TRUE)
+ids <- substr(bats, 85, 91)
+
+for(i in 1:length(bats)){
+  dominant_freq(df,
+      save_path = "./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/Wingbeats/PCA/",
+      tag_id = ids[i],
+      Burst = TRUE,
+      PCA = TRUE,
+      sampling_rate = 25, # P. hastatus
+      min_freq = 2,
+      max_freq = 8,
+      wavelet = FALSE,
+      saved_cores = 4,
+      gps = TRUE,
+      min_seg_duration = 10,
+      dfreq_threshold = 20,
+      use_FFT = TRUE,
+      use_wavelet = FALSE,
+      tag_type = "eObs", # "wildfi"
+      firetail = TRUE,
+      firetail_filter = FALSE,
+      solar_time = TRUE,
+      save_files = TRUE)
+}
+
+```
+

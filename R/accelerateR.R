@@ -19,18 +19,10 @@ bats <- sapply(strsplit(files, split = "-"), '[', 1)
 if(!dir.exists(paste0(path, "accelerateR"))){
   dir.create(paste0(path, "accelerateR"))
 }
-<<<<<<< HEAD
-=======
 
->>>>>>> fcd149c0b3b79cb96ec763a21657313998dcee69
 i=2
 for(i in 6:length(files)){
   print(bats[i])
-<<<<<<< HEAD
-=======
-S
-
->>>>>>> fcd149c0b3b79cb96ec763a21657313998dcee69
   df <- fread(paste0(path, files[i]))
   df$tag_local_identifier <- bats[i]
   if(!any(names(df) %in% "timestamp"){
@@ -83,17 +75,12 @@ S
 
   sum_acc <- sum_data(ACC, time = "timestamp", x="x" ,
                       y="y" , z="z" , stats = "all",
-<<<<<<< HEAD
-                      behaviour = "behavior")
+                      behaviour = "behavior",
+                      burstcount = burstcount, id = bats[i])
   if(nrow(ACC[ACC$behavior == "commuting",]) > 0){
     save(sum_acc, freqs, file = paste0(path, "accelerateR/", bats[i], ".robj"))
   }
   if(nrow(ACC[ACC$behavior == "commuting",]) == 0){
     save(sum_acc, file = paste0(path, "accelerateR/", bats[i], "_no_freq.robj"))
   }
-=======
-                      behaviour = "behavior",
-                      burstcount = burstcount, id = bats[i])
-  save(sum_acc, freqs, file = paste0(path, "accelerateR/", bats[i], ".robj"))
->>>>>>> fcd149c0b3b79cb96ec763a21657313998dcee69
 }
