@@ -46,7 +46,9 @@ for(i in 1:length(locations)){
   }
 
   # Get the sunset time for the given location and time
-  sunset_times <- suncalc::getSunlightTimes(date = as.Date(Freq$time) %>% unique(), lon = long, lat = lat, keep = c("sunset", "sunrise"))
+  sunset_times <- suncalc::getSunlightTimes(date = as.Date(Freq$time) %>% unique(),
+                                            lon = Freq$long[1], lat = Freq$lat[1],
+                                            keep = c("sunset", "sunrise"))
   Freq$hours_since_sunset <- NA
 
   for(j in 1:nrow(Freq)){
@@ -56,33 +58,28 @@ for(i in 1:length(locations)){
   }
   Frequency <- rbind(Frequency, Freq)
 }
+
+summary(Freq)
 table(Frequency$species)
 
-ggplot(Frequency[Frequency$frequency > 2 &
-                   Frequency$frequency < 6 &
-                   Frequency$amp > 10 &
-                   Frequency$behavior == "commuting" &
-                   Frequency$hours_since_sunset > -12,] %>% na.omit,
-       aes(x = frequency))+geom_histogram()+facet_wrap(~species)
+ggplot(Frequency[Frequency$frequency > 1 &
+                   Frequency$frequency < 20 &
+                   Frequency$amp > .5 &
+                   Frequency$behavior != "resting" &
+                   Frequency$hours_since_sunset > -2,] %>% na.omit,
+       aes(x = frequency, fill = bat))+
+         geom_histogram(binwidth = 0.2)+facet_wrap(~species, scales = "free")+
+  theme(legend.position = "none")
 
 ggplot(Frequency[Frequency$frequency > 2 &
-                 Frequency$frequency < 6 &
-                 Frequency$amp > 10 &
+                 Frequency$frequency < 20 &
+                 Frequency$amp > .5 &
                  Frequency$behavior != "commuting" &
                  Frequency$hours_since_sunset > -12,] %>% na.omit,
-       aes(x = amp))+geom_histogram()+facet_wrap(~species)
-
-Frequency$power <- Frequency$frequency^3 * Frequency$amp^3
+       aes(x = amp))+geom_histogram()+facet_wrap(~species, scales = "free")
 ggplot(Frequency[Frequency$frequency > 2 &
-                   Frequency$frequency < 6 &
-                   Frequency$amp > 10 &
-                   Frequency$behavior != "commuting" &
-                   Frequency$hours_since_sunset > -12,] %>% na.omit,
-       aes(x = power))+geom_histogram(bins = 50)+facet_wrap(~species, scales = "free")
-
-ggplot(Frequency[Frequency$frequency > 2 &
-                   Frequency$frequency < 6 &
-                   Frequency$amp > 10 &
+                   Frequency$frequency < 20 &
+                   Frequency$amp > 0.5 &
                    Frequency$behavior != "resting" &
                    Frequency$hours_since_sunset > -2,] %>% na.omit,
        aes(x = amp, y = frequency))+
@@ -90,55 +87,135 @@ ggplot(Frequency[Frequency$frequency > 2 &
   geom_smooth(method = "lm")+
   facet_wrap(~species)
 
+Frequency$power <- Frequency$frequency^3 * Frequency$amp^3
 ggplot(Frequency[Frequency$frequency > 2 &
-                   Frequency$frequency < 6 &
-                   Frequency$amp > 10 &
+                   Frequency$frequency < 20 &
+                   Frequency$amp > .5 &
                    Frequency$behavior == "commuting" &
                    Frequency$hours_since_sunset > -12,] %>% na.omit,
-       aes(x = hours_since_sunset, y = frequency, group = bat, col = bat))+
-  geom_point(alpha = 0.1)+
-  geom_smooth(method = "lm", se = FALSE)+
-  facet_wrap(~species, scales = "free")+theme(legend.position = "none")
+       aes(x = power))+geom_histogram(bins = 50)+
+  facet_wrap(~species, scales = "free")
 
+################################################################################
+# time
+################################################################################
+Frequency$date
+## Frequency
 ggplot(Frequency[Frequency$frequency > 2 &
-                   Frequency$frequency < 6 &
-                   Frequency$amp > 10 &
+                   Frequency$frequency < 20 &
+                   Frequency$amp > .5 &
+                   Frequency$behavior != "resting" &
+                   Frequency$hours_since_sunset > -2,] %>% na.omit,
+       aes(x = hours_since_sunset, y = frequency, group = paste0(bat,date), col = bat))+
+  geom_point(alpha = 0.1)+
+  geom_smooth(method = "lm", se = FALSE, alpha = 0.5)+
+  facet_wrap(~species, scales = "free")+theme(legend.position = "none")
+## Amplitude
+ggplot(Frequency[Frequency$frequency > 2 &
+                   Frequency$frequency < 20 &
+                   Frequency$amp > .5 &
                    Frequency$behavior == "commuting" &
-                   Frequency$hours_since_sunset > -12,] %>% na.omit,
+                   Frequency$hours_since_sunset > -2,] %>% na.omit,
        aes(x = hours_since_sunset, y = amp, group = bat, col = bat))+
   geom_point(alpha = 0.1)+
-  geom_smooth(method = "lm", se = FALSE)+
+  geom_smooth(method = "lm", se = FALSE, alpha = 0.5)+
+  facet_wrap(~species, scales = "free")+theme(legend.position = "none")
+## Power
+ggplot(Frequency[Frequency$frequency > 2 &
+                   Frequency$frequency < 20 &
+                   Frequency$amp > .5 &
+                   Frequency$behavior == "commuting" &
+                   Frequency$hours_since_sunset > -2,] %>% na.omit,
+       aes(x = hours_since_sunset, y = power, group = bat, col = bat))+
+  geom_point(alpha = 0.1)+
+  geom_smooth(method = "lm", se = FALSE, alpha = 0.5)+
   facet_wrap(~species, scales = "free")+theme(legend.position = "none")
 
-ggplot(Frequency[Frequency$frequency > 2 &
-                   Frequency$frequency < 6 &
-                   Frequency$amp > 10 &
-                   Frequency$behavior == "commuting" &
-                   Frequency$hours_since_sunset > -12,] %>% na.omit,
-       aes(x = hours_since_sunset, y = frequency^3*amp^3, group = bat, col = bat))+
-  geom_point(alpha = 0.1)+
-  geom_smooth(method = "lm", se = FALSE)+
-  facet_wrap(~species, scales = "free")+
-  theme(legend.position = "none")
 
-
-
+################################################################################
+# model freq
+################################################################################
 library(glmmTMB)
 library(DHARMa)
 
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# all bats
+#+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
 Frequency$date <- date(Frequency$sunset)
 
-fit_power <- glmmTMB(power~round(hours_since_sunset,0)+(1|bat+date),
-                     family = Gamma(link = "log"),
+fit_freq_all <- glmmTMB(frequency~round(hours_since_sunset,0)+(1+date|bat+species),
+                     #family = Gamma(link = "log"),
                   data = Frequency[Frequency$frequency > 2 &
-                                     Frequency$frequency < 6 &
-                                     Frequency$amp > 10 &
-                                     Frequency$behavior == "commuting" &
-                                     Frequency$hours_since_sunset > -2 &
-                                   Frequency$species == "Ehelvum",] %>% na.omit)
-summary(fit_power)
-simres <- simulateResiduals(fit_power)
+                                     Frequency$frequency < 20 &
+                                     Frequency$amp > .5 &
+                                     Frequency$behavior != "resting" &
+                                     Frequency$hours_since_sunset > -2,] %>% na.omit)
+summary(fit_freq_all)
+simres <- simulateResiduals(fit_freq_all)
 plot(simres)
+
+#-------------------------------------------------------------------------------
+# A jubatus
+#-------------------------------------------------------------------------------
+fit_freq_aj <- glmmTMB(frequency~round(hours_since_sunset,0)+(1+date|bat),
+                        #family = Gamma(link = "log"),
+                        data = Frequency[Frequency$frequency > 2 &
+                                           Frequency$frequency < 20 &
+                                           Frequency$amp > .5 &
+                                           Frequency$behavior != "resting" &
+                                           Frequency$hours_since_sunset > -2 &
+                                         Frequency$species == "Ajubatus",] %>% na.omit)
+summary(fit_freq_aj)
+simres <- simulateResiduals(fit_freq_aj)
+plot(simres)
+
+#-------------------------------------------------------------------------------
+# Eidolon helvum
+#-------------------------------------------------------------------------------
+fit_freq_eh <- glmmTMB(frequency~round(hours_since_sunset,0)+(1+date|bat),
+                       #family = Gamma(link = "log"),
+                       data = Frequency[Frequency$frequency > 2 &
+                                          Frequency$frequency < 20 &
+                                          Frequency$amp > .5 &
+                                          Frequency$behavior != "resting" &
+                                          Frequency$hours_since_sunset > -2 &
+                                          Frequency$species == "Ehelvum",] %>% na.omit)
+summary(fit_freq_eh)
+simres <- simulateResiduals(fit_freq_eh)
+plot(simres)
+
+#-------------------------------------------------------------------------------
+# A jubatus
+#-------------------------------------------------------------------------------
+fit_freq_aj <- glmmTMB(frequency~round(hours_since_sunset,0)+(1|bat+date),
+                       #family = Gamma(link = "log"),
+                       data = Frequency[Frequency$frequency > 2 &
+                                          Frequency$frequency < 20 &
+                                          Frequency$amp > .5 &
+                                          Frequency$behavior != "resting" &
+                                          Frequency$hours_since_sunset > -2 &
+                                          Frequency$species == "Ajubatus",] %>% na.omit)
+summary(fit_freq_aj)
+simres <- simulateResiduals(fit_freq_aj)
+plot(simres)
+
+#-------------------------------------------------------------------------------
+# A jubatus
+#-------------------------------------------------------------------------------
+fit_freq_aj <- glmmTMB(frequency~round(hours_since_sunset,0)+(1|bat+date),
+                       #family = Gamma(link = "log"),
+                       data = Frequency[Frequency$frequency > 2 &
+                                          Frequency$frequency < 20 &
+                                          Frequency$amp > .5 &
+                                          Frequency$behavior != "resting" &
+                                          Frequency$hours_since_sunset > -2 &
+                                          Frequency$species == "Ajubatus",] %>% na.omit)
+summary(fit_freq_aj)
+simres <- simulateResiduals(fit_freq_aj)
+plot(simres)
+
+
 
 fit_log_power <- glmmTMB(log(power)~round(hours_since_sunset,0)+(date|bat),
                      family = Gamma(link = "log"),

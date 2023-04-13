@@ -6,6 +6,7 @@ library(pacman)
 p_load(data.table, janitor, accelerateR, move)
 path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv17_60_model/"
 path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv18_07_model/"
+path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/"
 # df <- fread("./../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/tag_GPA-10_8147_S1-annotated-bursts-gps.csv")
 
 files <- list.files(path, pattern = "*.csv")
@@ -44,7 +45,8 @@ for(i in 1:length(files)){
                         id = "tag_local_identifier",
                         sample_frequency = "eobs_acceleration_sampling_frequency_per_axis",
                         naxes = 3, no_cores = 20)
-    }else{
+    }
+    if(!any(names(df) == "eobs_accelerations_raw")){
       ACC <- data.table(x = df$`acceleration-x`, y = df$`acceleration-y`, z = df$`acceleration-z`,
                         timestamp = df$timestamp, sample_frequency = sampling_rate,
                         behavior = factor(df$behavior, levels = c("commuting", "foraging", "resting")),
