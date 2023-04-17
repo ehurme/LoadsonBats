@@ -5,15 +5,16 @@ p_load(data.table, janitor, accelerateR, move)
 paths <- c("../../../ownCloud/Firetail/Acerodonjubatus/tag_1521/",
            "../../../ownCloud/Firetail/Pteropuslylei/Model_tag_2268/",
            "../../../ownCloud/Firetail/Eidolonhelvum/Model_tag_2396/",
-           "../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/")
+           "../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/",
+           "../../../ownCloud/Firetail/Myotisvivesi/")
 
-locations = c("Philippines","Thailand","Ghana", "Spain")
+locations = c("Philippines","Thailand","Ghana", "Spain", "Mexico")
 Frequency <- data.frame()
 i = 4
 for(i in 1:length(locations)){
   files <- list.files(paste0(paths[i], "accelerateR/"),
                       pattern = "*.robj", full.names = TRUE)
-  bats <- sapply(strsplit(list.files(paste0(paths[i], "accelerateR/"),pattern = "*.robj"), split = ".robj"), "[", 1)
+  bats <- sapply(strsplit(list.files(paste0(paths[i], "accelerateR/"),pattern = "*.robj", recursive = TRUE), split = ".robj"), "[", 1)
   Freq <- data.frame()
   for(j in 1:length(files)){
     freqs <- data.frame()

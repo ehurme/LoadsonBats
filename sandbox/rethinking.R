@@ -1,3 +1,15 @@
+library("rstan") # observe startup messages
+options(mc.cores = parallel::detectCores())
+rstan_options(auto_write = TRUE)
+schools_dat <- list(J = 8,
+                    y = c(28,  8, -3,  7, -1,  1, 18, 12),
+                    sigma = c(15, 10, 16, 11,  9, 11, 10, 18))
+
+fit <- stan(file = 'schools.stan', data = schools_dat)
+
+
+install.packages(c("coda","mvtnorm","devtools","loo","dagitty","shape"))
+devtools::install_github("rmcelreath/rethinking")
 library(rethinking)
 
 f <- alist(
@@ -43,7 +55,7 @@ m_glmm1 <- ulam(
     sigma ~ half_normal(0,1),
     b ~ normal(0,1)
   ), data=UCBadmit )
-# summary(m_glmm1)
+summary(m_glmm1)
 
 m_glmm2 <- ulam(
   alist(

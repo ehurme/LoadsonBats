@@ -7,6 +7,7 @@ p_load(data.table, janitor, accelerateR, move)
 path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv17_60_model/"
 path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv18_07_model/"
 path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/"
+path <- "./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/"
 # df <- fread("./../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/tag_GPA-10_8147_S1-annotated-bursts-gps.csv")
 
 files <- list.files(path, pattern = "*.csv")
@@ -15,7 +16,7 @@ if(!dir.exists(paste0(path, "accelerateR"))){
   dir.create(paste0(path, "accelerateR"))
 }
 
-i=2
+i=1
 for(i in 1:length(files)){
   print(bats[i])
   df <- fread(paste0(path, files[i]))
@@ -28,11 +29,21 @@ for(i in 1:length(files)){
   if(year(df$timestamp[1]) > 2017){
     sampling_rate <- 50
   }
+  if(year(df$timestamp[1]) > 2021){
+    sampling_rate <- 25
+  }
 
   df$behavior <- "resting"
-  df$behavior[which(df$`annotation-layer-commuting` != "")] <- "commuting"
-  df$behavior[which(df$`annotation-layer-foraging` != "")] <- "foraging"
+  if(any(names(df) == "annotation_layer_commuting")){
+    df$behavior[which(df$annotation_layer_commuting != "")] <- "commuting"
+    df$behavior[which(df$annotation_layer_foraging != "")] <- "foraging"
+  }
+  if(!any(names(df) == "annotation_layer_commuting")){
+    df$behavior[which(df$`annotation-layer-commuting` != "")] <- "commuting"
+    df$behavior[which(df$`annotation-layer-foraging` != "")] <- "foraging"
+  }
 
+  df$behavior %>% table
   # set burst size
   new_burst <- TRUE
   if(new_burst == TRUE){
@@ -45,6 +56,9 @@ for(i in 1:length(files)){
                         id = "tag_local_identifier",
                         sample_frequency = "eobs_acceleration_sampling_frequency_per_axis",
                         naxes = 3, no_cores = 20)
+      ACC$behavior <- rep(df$behavior[df$type == "acc"],
+                          each = burstcount)[1:nrow(ACC)]
+      table(ACC$behavior)/burstcount
     }
     if(!any(names(df) == "eobs_accelerations_raw")){
       ACC <- data.table(x = df$`acceleration-x`, y = df$`acceleration-y`, z = df$`acceleration-z`,
@@ -52,10 +66,12 @@ for(i in 1:length(files)){
                         behavior = factor(df$behavior, levels = c("commuting", "foraging", "resting")),
                         burst_size = burstcount)
     }
+    count_test(ACC, burstcount = ACC$burst_size[1])
 
     # floor(nrow(ACC)/burstcount)
     ACC <- ACC[1:(burstcount*floor(nrow(ACC)/burstcount)),]
-
+    table(ACC$behavior)/burstcount
+    ACC$burst_size <- burstcount
     # step burstcount factors at a time and estimate the median factor
     behavior <- sapply(seq(1, length(ACC$behavior)/burstcount), function(k) {
       start <- (k-1)*burstcount+1
@@ -92,23 +108,23 @@ for(i in 1:length(files)){
   # ACC <- ACC[-which(ACC$keep == FALSE),]
   nrow(ACC)/burstcount
   table(ACC$behavior)/burstcount
+  summary(ACC)
 
   ## fast fourier transform
-  if(nrow(ACC[ACC$behavior == "commuting" |
-              ACC$behavior == "foraging",]) > 0){
-    fft_acc <- sum_data(ACC[which(ACC$behavior == "commuting" |
-                                    ACC$behavior == "foraging"),], time = "time",
+  foraging_idx <- which(ACC$behavior == "commuting" |
+                          ACC$behavior == "foraging")
+  if(nrow(ACC[foraging_idx,]) > 0){
+    fft_acc <- sum_data(ACC[foraging_idx,], time = "time",
                         burstcount = burstcount,
                         #x="x" , y="y" ,
                         z="z" ,
                         stats = "FFT")
 
     image(fft_acc[,3:((burstcount/2)+1)] %>% as.matrix)
-    freqs <- data.frame(time = df$timestamp[df$behavior == "commuting"|
-                                              df$behavior == "foraging"],
+
+    freqs <- data.frame(time = ACC$time[foraging_idx] %>% unique(),
                         freq = NA, amp = NA,
-                        behavior = df$behavior[df$behavior == "commuting"|
-                                                 df$behavior == "foraging"])
+                        behavior = ACC$behavior[foraging_idx[seq(1, length(foraging_idx), by=burstcount)]])
     j <- 5
     for(j in 1:nrow(fft_acc)){
       # fft_acc[i,3:133] %>% as.numeric() %>% plot
@@ -117,7 +133,8 @@ for(i in 1:length(files)){
       freqs$freq[j] <- names(idx) %>% substr(3,nchar(names(idx)[1])) %>% as.numeric
       freqs$amp[j] <- max(fft_acc[j, 3:((burstcount/2)+1)])
     }
-    freqs$duration_of_burst <- ACC$burst_size[1]/ACC$sample_frequency[1]
+    freqs$duration_of_burst <- ACC$burst_size[1]/median(ACC$sample_frequency)
+    # freqs$fft_resolution <- median(ACC$sample_frequency)/ACC$burst_size[1]
     freqs$frequency <- freqs$freq/freqs$duration_of_burst
     png(file = paste0(path, "/accelerateR/wingbeat_", bats[i], ".png"),
         width = 800, height = 600)
