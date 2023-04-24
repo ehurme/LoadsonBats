@@ -6,7 +6,7 @@ library(pacman)
 p_load(data.table, janitor, accelerateR, move)
 path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv17_60_model/"
 path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv18_07_model/"
-path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/"
+path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_10_model/"
 path <- "./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/"
 # df <- fread("./../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/tag_GPA-10_8147_S1-annotated-bursts-gps.csv")
 
@@ -114,11 +114,15 @@ for(i in 1:length(files)){
   foraging_idx <- which(ACC$behavior == "commuting" |
                           ACC$behavior == "foraging")
   if(nrow(ACC[foraging_idx,]) > 0){
-    fft_acc <- sum_data(ACC[foraging_idx,], time = "time",
+    fft_acc <- {}
+    try({
+      fft_acc <- sum_data(data = ACC[foraging_idx,] %>% na.omit(),
+                        time = "time",
                         burstcount = burstcount,
                         #x="x" , y="y" ,
-                        z="z" ,
+                        z="z",
                         stats = "FFT")
+      })
 
     image(fft_acc[,3:((burstcount/2)+1)] %>% as.matrix)
 

@@ -1,30 +1,50 @@
 # read accelerateR data
 
 library(pacman)
-p_load(data.table, janitor, accelerateR, move)
+p_load(data.table, janitor, accelerateR)
 paths <- c("../../../ownCloud/Firetail/Acerodonjubatus/tag_1521/",
            "../../../ownCloud/Firetail/Pteropuslylei/Model_tag_2268/",
            "../../../ownCloud/Firetail/Eidolonhelvum/Model_tag_2396/",
            "../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/",
-           "../../../ownCloud/Firetail/Myotisvivesi/")
+           "../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/",
+           "../../../ownCloud/Firetail/Myotisvivesi/Mviv17_60_model/",
+           "../../../ownCloud/Firetail/Myotisvivesi/Mviv18_07_model/") #,
+           # "../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/")
 
-locations = c("Philippines","Thailand","Ghana", "Spain", "Mexico")
+locations = c("Philippines","Thailand","Ghana", "Spain", "Panama", "Mexico", "Mexico") #, "Mexico")
 Frequency <- data.frame()
-i = 4
-for(i in 1:length(locations)){
+i = 6
+for(i in 6:length(locations)){
   files <- list.files(paste0(paths[i], "accelerateR/"),
                       pattern = "*.robj", full.names = TRUE)
   bats <- sapply(strsplit(list.files(paste0(paths[i], "accelerateR/"),pattern = "*.robj", recursive = TRUE), split = ".robj"), "[", 1)
   Freq <- data.frame()
+  j = 1
   for(j in 1:length(files)){
     freqs <- data.frame()
     load(files[j])
+    print(files[j])
+    freqs <- na.omit(freqs)
+    plot(freqs$time, freqs$frequency, main = paste0(bats[j], " ", freqs$time[1]),
+         col = factor(freqs$behavior), pch = 16)
     if(nrow(freqs) > 0){
       freqs$bat <- bats[j]
+      idx <- which(sum_acc$time %in% freqs$time)
+      freqs$amplitude <- NA
+      if(length(idx) == nrow(freqs)){
+        freqs$amplitude <- sum_acc$rangez[idx]
+      }
+      if(length(idx) != nrow(freqs)){
+        k = 1
+        for(k in 1:nrow(freqs)){
+          idx <- which.min(abs(freqs$time[k] - sum_acc$time))
+          freqs$amplitude <- sum_acc$rangez[idx]
+        }
+      }
       Freq <- rbind(Freq, freqs)
     }
   }
-
+  # Freq[Freq$bat == 'individual_Mviv18_27',]
   if(locations[i] == "Philippines"){
     Freq$long <- 120.273
     Freq$lat <- 14.788
@@ -45,9 +65,37 @@ for(i in 1:length(locations)){
     Freq$lat <- 36.99
     Freq$species <- "Nlasiopterus"
   }
+  if(locations[i] == "Panama"){
+    Freq$long <- -82.3
+    Freq$lat <- 9.4
+    Freq$species <- "Phastatus"
+  }
+  if(locations[i] == "Mexico"){
+    Freq$long <- -113
+    Freq$lat <- 28.9
+    Freq$species <- "Mvivesi"
+    if(year(Freq$time[i]) == 2017){
+      #Freq$local_time <- Freq$time
+      Freq$time <- Freq$time + 7*3600
+    }
+    b <- unique(Freq$bat)
+    k = 7
+    for(k in 1:length(b)){
+      f_idx <- which(Freq$bat == b[k])
+      if(Freq$time[f_idx[1]] %>% hour < 11){
+        Freq$time[f_idx] <- Freq$time[f_idx] - 7*3600
+      }
+      if(Freq$time[f_idx[1]] %>% hour > 15){
+        Freq$time[f_idx] <- Freq$time[f_idx] + 7*3600
+      }
+    }
+  }
 
   # Get the sunset time for the given location and time
-  sunset_times <- suncalc::getSunlightTimes(date = as.Date(Freq$time) %>% unique(),
+  dates <- as.Date(Freq$time) %>% unique()
+  dates <-seq.Date(dates[1]-1, dates[length(dates)]+1, by = 1)
+    c(dates[1]-1, dates, dates[length(dates)]+1)
+  sunset_times <- suncalc::getSunlightTimes(date = dates,
                                             lon = Freq$long[1], lat = Freq$lat[1],
                                             keep = c("sunset", "sunrise"))
   Freq$hours_since_sunset <- NA
@@ -57,16 +105,30 @@ for(i in 1:length(locations)){
     Freq$sunset[j] <- sunset_times$sunset[sunset_idx] %>% as.character()
     Freq$hours_since_sunset[j] <- difftime(Freq$time[j], sunset_times$sunset[sunset_idx], units = "hours") %>% as.numeric
   }
-  Frequency <- rbind(Frequency, Freq)
-}
+  hist(hour(Freq$time))
+  hist(Freq$hours_since_sunset)
 
-summary(Freq)
+  Frequency <- rbind(Frequency, Freq)
+  print(length(which(is.na(Frequency$freq))))
+}
+Frequency$bat %>% table
+hist(Frequency$hours_since_sunset)
+Frequency[which(Frequency$hours_since_sunset < -2),] %>% View()
+
+# save(Frequency, file = "../../../Dropbox/MPI/Wingbeat/data/Frequency_Phastatus.robj")
+save(Frequency, file = "../../../Dropbox/MPI/Wingbeat/data/Frequency_Mvivesi.robj")
+# load("../../../Dropbox/MPI/Wingbeat/data/Frequency_Mvivesi.robj")
+
+table(Frequency$bat)
+summary(Frequency)
 table(Frequency$species)
+Frequency[which(Frequency$frequency %>% is.na),]
+
 
 ggplot(Frequency[Frequency$frequency > 1 &
                    Frequency$frequency < 20 &
                    Frequency$amp > .5 &
-                   Frequency$behavior != "resting" &
+                   Frequency$behavior != "commuting" &
                    Frequency$hours_since_sunset > -2,] %>% na.omit,
        aes(x = frequency, fill = bat))+
          geom_histogram(binwidth = 0.2)+facet_wrap(~species, scales = "free")+
@@ -78,17 +140,25 @@ ggplot(Frequency[Frequency$frequency > 2 &
                  Frequency$behavior != "commuting" &
                  Frequency$hours_since_sunset > -12,] %>% na.omit,
        aes(x = amp))+geom_histogram()+facet_wrap(~species, scales = "free")
+
+ggplot(Frequency[Frequency$frequency > 2 &
+                   Frequency$frequency < 20 &
+                   Frequency$amp > .5 &
+                   Frequency$behavior != "commuting" &
+                   Frequency$hours_since_sunset > -12,] %>% na.omit,
+       aes(x = amplitude))+geom_histogram()+facet_wrap(~species, scales = "free")
+
 ggplot(Frequency[Frequency$frequency > 2 &
                    Frequency$frequency < 20 &
                    Frequency$amp > 0.5 &
                    Frequency$behavior != "resting" &
                    Frequency$hours_since_sunset > -2,] %>% na.omit,
-       aes(x = amp, y = frequency))+
+       aes(x = amplitude, y = frequency, col = bat, group = species))+
   geom_point(alpha = 0.1)+
   geom_smooth(method = "lm")+
-  facet_wrap(~species)
+  facet_wrap(~species)+theme(legend.position = "none")
 
-Frequency$power <- Frequency$frequency^3 * Frequency$amp^3
+Frequency$power <- Frequency$frequency^3 * Frequency$amplitude^3
 ggplot(Frequency[Frequency$frequency > 2 &
                    Frequency$frequency < 20 &
                    Frequency$amp > .5 &
@@ -107,10 +177,12 @@ ggplot(Frequency[Frequency$frequency > 2 &
                    Frequency$amp > .5 &
                    Frequency$behavior != "resting" &
                    Frequency$hours_since_sunset > -2,] %>% na.omit,
-       aes(x = hours_since_sunset, y = frequency, group = paste0(bat,date), col = bat))+
+       aes(x = hours_since_sunset, y = frequency, #group = paste0(bat, date),
+           col = bat))+
   geom_point(alpha = 0.1)+
   geom_smooth(method = "lm", se = FALSE, alpha = 0.5)+
   facet_wrap(~species, scales = "free")+theme(legend.position = "none")
+
 ## Amplitude
 ggplot(Frequency[Frequency$frequency > 2 &
                    Frequency$frequency < 20 &

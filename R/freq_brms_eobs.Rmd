@@ -1,0 +1,113 @@
+---
+title: "frequency model brms"
+output: html_document
+date: "2023-04-17"
+---
+
+```{r}
+library(pacman)
+p_load(data.table, janitor, accelerateR, brms, tidyverse, ggplot2)
+```
+
+
+# real data
+## eobs
+### load data
+```{r}
+load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_eobs.robj")
+```
+
+# clean
+```{r}
+summary(Frequency)
+
+Frequency <- Frequency[Frequency$hours_since_sunset > 0 & 
+                        Frequency$frequency > 1 &
+                         Frequency$amp > 0.5 &
+                         Frequency$behavior != "resting",] %>% na.omit()
+```
+
+# make sure there are enough observations per bat night
+```{r}
+Frequency$day_bat_species <- paste(date(Frequency$sunset), Frequency$bat, Frequency$species)
+day_bat_species <- table(Frequency$day_bat_species)
+
+keep <- day_bat_species[which(day_bat_species %>% as.numeric > 30)] %>% names()
+
+clean_freq <- Frequency[which(Frequency$day_bat_species %in% keep),]
+clean_freq$day_bat_species %>% table
+```
+
+
+```{r}
+clean_freq$date <- date(clean_freq$sunset)
+clean_freq %>% head
+summary(clean_freq)
+
+ggplot(clean_freq[clean_freq$hours_since_sunset > 0 &
+                 clean_freq$behavior == "commuting",], 
+       aes(x = round(hours_since_sunset,0), y = frequency, group = bat))+
+  geom_smooth(method = "lm")+
+  facet_wrap(~species)
+
+```
+## Acerodon
+```{r}
+clean_freq$day_bat_species[clean_freq$species=="Ajubatus"&
+                                clean_freq$behavior == "commuting" &
+                                clean_freq$frequency < 5] %>% table
+ggplot(clean_freq[clean_freq$species=="Ajubatus"&
+                                clean_freq$behavior == "commuting" &
+                                clean_freq$frequency < 5,] %>% na.omit(),
+       aes(hours_since_sunset, frequency, col = bat))+ geom_point()+
+  geom_smooth(method = "lm")+facet_wrap(~bat+date, scales = "free")
+
+fit_aj <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
+            family = gaussian,
+            # prior = c(prior(normal(2.5, sd = 0.5)))
+            data = clean_freq[clean_freq$species=="Ajubatus" &
+                                clean_freq$behavior == "commuting" &
+                                clean_freq$frequency < 5,] %>% na.omit(), 
+            cores = 20)
+summary(fit_aj)
+plot(fit_aj, ask = FALSE)
+```
+
+## Eidolon
+```{r}
+fit_eh <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
+            family = gaussian,
+            # prior = c(prior(normal(2.5, sd = 0.5)))
+            data = clean_freq[clean_freq$species=="Ehelvum",] %>% na.omit(), 
+            cores = 20)
+summary(fit_eh)
+plot(fit_eh, ask = FALSE)
+```
+
+## Pteropus
+```{r}
+fit_pl <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
+            family = gaussian,
+            # prior = c(prior(normal(2.5, sd = 0.5)))
+            data = clean_freq[clean_freq$species=="Plylei",] %>% na.omit(), 
+            cores = 20)
+summary(fit_pl)
+plot(fit_pl, ask = FALSE)
+```
+
+
+```{r}
+fit_eobs <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat+species),
+            family = gaussian,
+            # prior = c(prior(normal(2.5, sd = 0.5)))
+            data = clean_freq %>% na.omit(), 
+            cores = 20)
+summary(fit_eobs)
+plot(fit_eobs, ask = FALSE)
+```
+
+```{r}
+save(fit_aj, fit_eh, fit_pl, fit_eobs, Frequency, clean_freq, 
+     file = "../../../../Dropbox/MPI/Wingbeat/data/Frequency_eobs_commuting_hours_models.robj")
+```
+

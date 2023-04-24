@@ -31,7 +31,7 @@ for(i in 1:length(files)){
   ACC <- move_trans(data =  df[df$type == "acc",], timestamp = "timestamp", acc = "eobs_accelerations_raw",
                     id = "tag_local_identifier",
                     sample_frequency = "eobs_acceleration_sampling_frequency_per_axis",
-                    naxes = 3, no_cores = 4)
+                    naxes = 3, no_cores = 20)
   burstcount = df$eobs_accelerations_raw[1] %>% strsplit(split = " ") %>% unlist %>% length/3
   count_test(ACC, burstcount)
 

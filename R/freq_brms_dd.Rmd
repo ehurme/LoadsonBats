@@ -1,0 +1,109 @@
+---
+title: "frequency model brms"
+output: html_document
+date: "2023-04-17"
+---
+
+```{r}
+library(pacman)
+p_load(data.table, janitor, accelerateR, brms, tidyverse, ggplot2)
+```
+
+
+# real data
+## daily diary
+### load data
+```{r}
+load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Nlasiopterus.robj")
+load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Mvivesi.robj")
+load("../../../Dropbox/MPI/Wingbeat/data/Frequency_Phastatus.robj")
+```
+
+# clean
+```{r}
+summary(Frequency)
+
+Frequency <- Frequency[#Frequency$hours_since_sunset > 0 &
+                        Frequency$frequency > 1 &
+                         Frequency$frequency < 10 &
+                         # Frequency$amp > 1000 &
+                       Frequency$behavior == "commuting",]
+```
+
+# make sure there are enough observations per bat night
+```{r}
+Frequency$day_bat_species <- paste(date(Frequency$sunset), Frequency$bat, Frequency$species)
+day_bat_species <- table(Frequency$day_bat_species)
+
+keep <- day_bat_species[which(day_bat_species %>% as.numeric > 50)] %>% names()
+
+clean_freq <- Frequency[which(Frequency$day_bat_species %in% keep),]
+
+clean_freq$day_bat_species %>% table %>% length()
+```
+
+
+```{r}
+clean_freq$date <- date(clean_freq$sunset)
+clean_freq %>% head
+summary(clean_freq)
+Frequency$amp %>% hist
+
+
+ggplot(clean_freq[# clean_freq$behavior == "commuting" & 
+                    clean_freq$frequency > 5 &
+                                clean_freq$frequency < 8,], 
+       aes(x = hours_since_sunset,#hour(time), 
+           y = frequency, group = bat, col = bat))+
+  geom_point(alpha = 0.1)+
+  geom_smooth(method = "lm")+
+  facet_wrap(~bat)
+
+```
+## Phyllostomus hastatus
+```{r}
+fit_ph <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
+            family = gaussian,
+            # prior = c(prior(normal(2.5, sd = 0.5)))
+            data = clean_freq[clean_freq$species=="Phastatus",] %>% na.omit(), 
+            cores = 20)
+summary(fit_ph)
+plot(fit_ph, ask = FALSE)
+save(fit_ph, Frequency, clean_freq, 
+     file = "../../../../Dropbox/MPI/Wingbeat/data/Frequency_technosmart_commuting_hours_models.robj")
+```
+
+## Myotis vivesi
+```{r}
+fit_mv <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
+            family = gaussian,
+            # prior = c(prior(normal(2.5, sd = 0.5)))
+            data = clean_freq[clean_freq$species=="Mvivesi" &
+                                clean_freq$behavior == "commuting" &
+                                clean_freq$frequency > 5.5 &
+                                clean_freq$frequency < 7.5,] %>% na.omit(), 
+            cores = 20)
+summary(fit_mv)
+plot(fit_mv, ask = FALSE)
+save(fit_mv, Frequency, clean_freq, 
+     file = "../../../../Dropbox/MPI/Wingbeat/data/Frequency_vesper_commuting_hours_models.robj")
+```
+
+## Nyctalus
+```{r}
+fit_nl <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
+            family = gaussian,
+            # prior = c(prior(normal(2.5, sd = 0.5)))
+            data = clean_freq[clean_freq$species=="Nlasiopterus",] %>% na.omit(), 
+            cores = 20)
+summary(fit_nl)
+plot(fit_nl, ask = FALSE)
+```
+
+```{r}
+save(fit_mv, Frequency, clean_freq, 
+     file = "../../../../Dropbox/MPI/Wingbeat/data/Frequency_vesper_commuting_hours_models.robj")
+
+load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_dd_commuting_hours_models.robj")
+```
+
