@@ -23,8 +23,8 @@ summary(Frequency)
 
 Frequency <- Frequency[Frequency$hours_since_sunset > 0 & 
                         Frequency$frequency > 1 &
-                         Frequency$amp > 0.5 &
-                         Frequency$behavior != "resting",] %>% na.omit()
+                         Frequency$amp > 50 &
+                         Frequency$behavior == "commuting",] %>% na.omit()
 ```
 
 # make sure there are enough observations per bat night
@@ -44,13 +44,50 @@ clean_freq$date <- date(clean_freq$sunset)
 clean_freq %>% head
 summary(clean_freq)
 
-ggplot(clean_freq[clean_freq$hours_since_sunset > 0 &
-                 clean_freq$behavior == "commuting",], 
-       aes(x = round(hours_since_sunset,0), y = frequency, group = bat))+
-  geom_smooth(method = "lm")+
-  facet_wrap(~species)
+```
+# summarise data
+```{r}
+clean_freq
+
+clean_freq$bat[clean_freq$species=="Ajubatus" &
+                                clean_freq$behavior == "commuting" &
+                                clean_freq$frequency < 5] %>% table %>% length
+clean_freq$day_bat_species[clean_freq$species=="Ajubatus" &
+                                clean_freq$behavior == "commuting" &
+                                clean_freq$frequency < 5] %>% table %>% length
+
+clean_freq$bat[clean_freq$species=="Ehelvum"] %>% table %>% length
+clean_freq$day_bat_species[clean_freq$species=="Ehelvum"] %>% table %>% length
+
+clean_freq$bat[clean_freq$species=="Plylei"] %>% table %>% length
+clean_freq$day_bat_species[clean_freq$species=="Plylei"] %>% table %>% length
 
 ```
+
+
+# plot data
+```{r}
+ggplot(clean_freq[clean_freq$hours_since_sunset > 0 &
+                 clean_freq$behavior == "commuting",], 
+       aes(x = round(hours_since_sunset,0), y = frequency, col = bat, group = bat))+
+  geom_smooth(method = "lm")+ xlab("Hours since sunset")+ ylab("Dominant Wingbeat Frequency (Hz)")+
+  facet_wrap(~species)+theme_bw()+theme(legend.position = "none")
+
+ggplot(clean_freq, 
+       aes(x = frequency, y = amp, col = bat, group = bat))+
+  geom_point(alpha = 0.1)+
+  # geom_smooth(method = "lm")+
+  facet_wrap(~species)+theme_bw()+theme(legend.position = "none")
+
+ggplot(clean_freq[clean_freq$hours_since_sunset > 0 &
+                 clean_freq$behavior == "commuting",], 
+       aes(x = frequency, y = amp, col = bat, group = bat))+
+  geom_smooth(method = "lm")+
+  facet_wrap(~species)+theme_bw()+theme(legend.position = "none")
+```
+
+
+
 ## Acerodon
 ```{r}
 clean_freq$day_bat_species[clean_freq$species=="Ajubatus"&
@@ -72,6 +109,25 @@ fit_aj <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
 summary(fit_aj)
 plot(fit_aj, ask = FALSE)
 ```
+
+### amplitude
+```{r}
+ggplot(clean_freq[clean_freq$species=="Ajubatus"&
+                                clean_freq$behavior == "commuting",],
+                                #clean_freq$frequency < 5
+       aes(hours_since_sunset, amplitude, col = bat))+ geom_point()+
+  geom_smooth(method = "lm")#+facet_wrap(~bat+date, scales = "free")
+fit_amp_aj <- brm(amplitude ~ round(hours_since_sunset, 0) + (1+date|bat),
+            family = gaussian,
+            # prior = c(prior(normal(2.5, sd = 0.5)))
+            data = clean_freq[clean_freq$species=="Ajubatus" &
+                                clean_freq$behavior == "commuting" &
+                                clean_freq$frequency < 5,] %>% na.omit(), 
+            cores = 20)
+summary(fit_aj)
+plot(fit_aj, ask = FALSE)
+```
+
 
 ## Eidolon
 ```{r}
@@ -97,17 +153,17 @@ plot(fit_pl, ask = FALSE)
 
 
 ```{r}
-fit_eobs <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat+species),
-            family = gaussian,
-            # prior = c(prior(normal(2.5, sd = 0.5)))
-            data = clean_freq %>% na.omit(), 
-            cores = 20)
-summary(fit_eobs)
-plot(fit_eobs, ask = FALSE)
+# fit_eobs <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat+species),
+#             family = gaussian,
+#             # prior = c(prior(normal(2.5, sd = 0.5)))
+#             data = clean_freq %>% na.omit(), 
+#             cores = 20)
+# summary(fit_eobs)
+# plot(fit_eobs, ask = FALSE)
 ```
 
 ```{r}
-save(fit_aj, fit_eh, fit_pl, fit_eobs, Frequency, clean_freq, 
+save(fit_aj, fit_eh, fit_pl, Frequency, clean_freq, 
      file = "../../../../Dropbox/MPI/Wingbeat/data/Frequency_eobs_commuting_hours_models.robj")
 ```
 

@@ -16,7 +16,7 @@ p_load(data.table, janitor, accelerateR, brms, tidyverse, ggplot2)
 ```{r}
 load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Nlasiopterus.robj")
 load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Mvivesi.robj")
-load("../../../Dropbox/MPI/Wingbeat/data/Frequency_Phastatus.robj")
+load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Phastatus.robj")
 ```
 
 # clean
@@ -32,6 +32,7 @@ Frequency <- Frequency[#Frequency$hours_since_sunset > 0 &
 
 # make sure there are enough observations per bat night
 ```{r}
+Frequency$bat %>% table %>% length
 Frequency$day_bat_species <- paste(date(Frequency$sunset), Frequency$bat, Frequency$species)
 day_bat_species <- table(Frequency$day_bat_species)
 
@@ -62,6 +63,25 @@ ggplot(clean_freq[# clean_freq$behavior == "commuting" &
 ```
 ## Phyllostomus hastatus
 ```{r}
+
+Frequency <- Frequency[Frequency$hours_since_sunset > 0 &
+                        Frequency$frequency > 1 &
+                         Frequency$frequency < 10 &
+                         # Frequency$amp > 1000 &
+                       Frequency$behavior == "commuting",]
+
+
+Frequency$day_bat_species <- paste(date(Frequency$sunset), Frequency$bat, Frequency$species)
+day_bat_species <- table(Frequency$day_bat_species)
+
+keep <- day_bat_species[which(day_bat_species %>% as.numeric > 30)] %>% names()
+
+clean_freq <- Frequency[which(Frequency$day_bat_species %in% keep),]
+
+clean_freq$bat %>% table %>% length
+clean_freq$day_bat_species %>% table %>% length()
+
+
 fit_ph <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
             family = gaussian,
             # prior = c(prior(normal(2.5, sd = 0.5)))

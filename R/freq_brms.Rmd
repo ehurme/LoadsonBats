@@ -10,12 +10,176 @@ p_load(data.table, janitor, accelerateR, brms, tidyverse, ggplot2)
 ```
 
 # toy models
+## single species, one mean, one slope
+```{r}
+Frequency <- data.frame()
+starts <- {}
+for(i in 1){
+  start_freqs <- rnorm(mean = 2.5+i, sd = 0.25, n = 100)
+  hist(start_freqs)
+  starts <- c(starts, start_freqs)
+  # hist(start_freqs)
+  
+  # how does start freq change with time?
+  slope = rnorm(mean = 0.01, sd = 0.01, n = 100)
+  hist(slope)
+  
+  freq1 <- start_freqs + slope
+  freq2 <- freq1 + slope
+  freq3 <- freq2 + slope
+  freq4 <- freq3 + slope
+  freq5 <- freq4 + slope
+  freq6 <- freq5 + slope
+  
+  freqs <- data.frame(frequency = c(start_freqs, freq1, freq2, freq3, freq4, freq5, freq6),
+                      time = rep(1:7, each = 100), bat = rep(1:100, 7), species = i)  
+  Frequency <- rbind(Frequency, freqs)
+}
+
+summary(starts)
+
+# hist(freqs$frequency)
+# hist(rnorm(mean = 2.5, sd = 0.5, n = 700), add = TRUE, col = rgb(1,0,0,.1))
+
+ggplot(Frequency, aes(x = time, y = frequency, 
+                  group = species))+
+  #geom_point(aes(col = bat))+
+  geom_smooth()+facet_wrap(~species)
+
+prior1 <- get_prior(frequency ~ time + (1|bat),
+            family = gaussian,
+            # prior = c(prior(normal(2.5, sd = 0.5)))
+            data = Frequency)
+
+prior1$prior[2] <- "normal(0.01,0.01)"
+prior1$prior[3] <- "normal(3.5,0.5)"
+
+fit1sp <- brm(frequency ~ 1 + time + (1|bat),
+            family = gaussian,
+            prior = prior1,
+            data = Frequency, cores = 10)
+summary(fit1sp)
+
+plot(fit1sp)
+```
+
+## single species, two means, one slope
+```{r}
+Frequency <- data.frame()
+starts <- {}
+for(i in 1:2){
+  start_freqs <- rnorm(mean = 2.5+i, sd = 0.25, n = 100)
+  hist(start_freqs)
+  starts <- c(starts, start_freqs)
+  # hist(start_freqs)
+  
+  # how does start freq change with time?
+  slope = rnorm(mean = 0.01, sd = 0.01, n = 100)
+  hist(slope)
+  
+  freq1 <- start_freqs + slope
+  freq2 <- freq1 + slope
+  freq3 <- freq2 + slope
+  freq4 <- freq3 + slope
+  freq5 <- freq4 + slope
+  freq6 <- freq5 + slope
+  
+  freqs <- data.frame(frequency = c(start_freqs, freq1, freq2, freq3, freq4, freq5, freq6),
+                      time = rep(1:7, each = 100), bat = rep(1:100, 7), sex = i)  
+  Frequency <- rbind(Frequency, freqs)
+}
+
+summary(starts)
+
+ggplot(Frequency, aes(x = frequency, fill = factor(sex)))+ 
+  geom_histogram()+theme(legend.position = "none")
+# hist(freqs$frequency)
+# hist(rnorm(mean = 2.5, sd = 0.5, n = 700), add = TRUE, col = rgb(1,0,0,.1))
+
+ggplot(Frequency, aes(x = time, y = frequency, 
+                  group = sex))+
+  #geom_point(aes(col = bat))+
+  geom_smooth()+facet_wrap(~sex)
+
+prior1 <- get_prior(frequency ~ time + (1|bat+sex),
+            family = gaussian,
+            # prior = c(prior(normal(2.5, sd = 0.5)))
+            data = Frequency)
+
+prior1$prior[2] <- "normal(0.01,0.01)"
+prior1$prior[3] <- "normal(3.5,0.5)"
+
+fit1sp_2m <- brm(frequency ~ 1 + time + (1|bat+sex),
+            family = gaussian,
+            prior = prior1,
+            data = Frequency, cores = 10)
+summary(fit1sp_2m)
+
+plot(fit1sp_2m)
+```
+
+## single species, one means, two slope
+```{r}
+Frequency <- data.frame()
+starts <- {}
+for(i in 1:2){
+  start_freqs <- rnorm(mean = 2.5, sd = 0.25, n = 100)
+  hist(start_freqs)
+  starts <- c(starts, start_freqs)
+  # hist(start_freqs)
+  
+  # how does start freq change with time?
+  slope = rnorm(mean = 0.01+(i-1)/100, sd = 0.01, n = 100)
+  hist(slope)
+  
+  freq1 <- start_freqs + slope
+  freq2 <- freq1 + slope
+  freq3 <- freq2 + slope
+  freq4 <- freq3 + slope
+  freq5 <- freq4 + slope
+  freq6 <- freq5 + slope
+  
+  freqs <- data.frame(frequency = c(start_freqs, freq1, freq2, freq3, freq4, freq5, freq6),
+                      time = rep(1:7, each = 100), bat = rep(1:100, 7), sex = i)  
+  Frequency <- rbind(Frequency, freqs)
+}
+
+summary(starts)
+
+ggplot(Frequency, aes(x = frequency, fill = factor(sex)))+ 
+  geom_histogram()+theme(legend.position = "none")
+# hist(freqs$frequency)
+# hist(rnorm(mean = 2.5, sd = 0.5, n = 700), add = TRUE, col = rgb(1,0,0,.1))
+
+ggplot(Frequency, aes(x = time, y = frequency, 
+                  group = sex))+
+  #geom_point(aes(col = bat))+
+  geom_smooth()+facet_wrap(~sex)
+
+prior1 <- get_prior(frequency ~ time + (1|bat+sex),
+            family = gaussian,
+            # prior = c(prior(normal(2.5, sd = 0.5)))
+            data = Frequency)
+
+prior1$prior[2] <- "normal(0.01,0.01)"
+prior1$prior[3] <- "normal(3.5,0.5)"
+
+fit1sp_2s <- brm(frequency ~ 1 + time + (1|bat+sex),
+            family = gaussian,
+            prior = prior1,
+            data = Frequency, cores = 10)
+summary(fit1sp_2s)
+
+plot(fit1sp_2s)
+```
+
 ## consistent slope between species
 ```{r}
 Frequency <- data.frame()
 starts <- {}
 for(i in 1:4){
   start_freqs <- rnorm(mean = 2.5+i, sd = 0.5, n = 100)
+  hist(start_freqs)
   starts <- c(starts, start_freqs)
   # hist(start_freqs)
   
@@ -80,7 +244,6 @@ for(i in 1:4){
   slope = rnorm(mean = 0.01+i/100, sd = 0.01, n = 100)
   # hist(slope)
   slopes <- rbind(slopes, data.frame(slope, bat = i))
-   
   
   freq1 <- start_freqs + slope
   freq2 <- freq1 + slope
