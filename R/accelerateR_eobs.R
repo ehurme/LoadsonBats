@@ -45,26 +45,25 @@ for(i in 1:length(files)){
   ## fast fourier transform
   if(nrow(ACC[ACC$behavior == "commuting" |
               ACC$behavior == "foraging",]) > 0){
-    fft_acc <- sum_data(ACC[ACC$behavior == "commuting"|
-                              ACC$behavior == "foraging",], time = "timestamp",
+    fft_acc <- sum_data(ACC, time = "timestamp",
                         burstcount = 792/3,
                         #x="x" , y="y" ,
                         z="z" ,
                         stats = "FFT")
-
-    image(fft_acc[,3:133] %>% as.matrix)
-    freqs <- data.frame(time = df$timestamp[df$behavior == "commuting"|
-                                              df$behavior == "foraging"],
+    png(file = paste0(path, "/accelerateR/fft_", bats[i], ".png"),
+        width = 800, height = 600)
+      image(fft_acc[,3:(burstcount/2+1)] %>% as.matrix)
+    dev.off()
+    freqs <- data.frame(time = df$timestamp,
                         freq = NA, amp = NA,
-                        behavior = df$behavior[df$behavior == "commuting"|
-                                      df$behavior == "foraging"])
+                        behavior = df$behavior)
     j <- 5
     for(j in 1:nrow(fft_acc)){
       # fft_acc[i,3:133] %>% as.numeric() %>% plot
-      idx <- which.max(fft_acc[j,3:133])
+      idx <- which.max(fft_acc[j,3:(burstcount/2+1)])
       # abline(v = idx)
       freqs$freq[j] <- names(idx) %>% substr(3,nchar(names(idx)[1])) %>% as.numeric
-      freqs$amp[j] <- max(fft_acc[j, 3:133])
+      freqs$amp[j] <- max(fft_acc[j, 3:(burstcount/2+1)])
     }
     freqs$duration_of_burst <- ACC$burst_size[1]/ACC$sample_frequency[1]
     freqs$frequency <- freqs$freq/freqs$duration_of_burst

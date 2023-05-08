@@ -8,26 +8,32 @@ path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv17_60_model/"
 path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv18_07_model/"
 path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_10_model/"
 path <- "./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/"
+path <- "./../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/"
 # df <- fread("./../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/tag_GPA-10_8147_S1-annotated-bursts-gps.csv")
 
 files <- list.files(path, pattern = "*.csv")
-bats <- sapply(strsplit(files, split = "-"), '[', 1)
+bats <- sapply(strsplit(files, split = "-a"), '[', 1)
+
 if(!dir.exists(paste0(path, "accelerateR"))){
   dir.create(paste0(path, "accelerateR"))
 }
 
 i=1
-for(i in 1:length(files)){
+for(i in 2:length(files)){
   print(bats[i])
   df <- fread(paste0(path, files[i]))
   df$tag_local_identifier <- bats[i]
   idx <- grep(x = names(df), pattern = "time")[1]
   df$timestamp <- as.data.frame(df)[,idx]
-  if(year(df$timestamp[1]) == 2017){
-    sampling_rate <- 40
-  }
+
   if(year(df$timestamp[1]) > 2017){
     sampling_rate <- 50
+  }
+  if(grepl(x = bats[i], pattern = "GPA")){
+    sampling_rate <- 100
+  }
+  if(year(df$timestamp[1]) == 2017){
+    sampling_rate <- 40
   }
   if(year(df$timestamp[1]) > 2021){
     sampling_rate <- 25
@@ -111,8 +117,9 @@ for(i in 1:length(files)){
   summary(ACC)
 
   ## fast fourier transform
-  foraging_idx <- which(ACC$behavior == "commuting" |
-                          ACC$behavior == "foraging")
+  # foraging_idx <- which(ACC$behavior == "commuting" |
+  #                         ACC$behavior == "foraging")
+  foraging_idx <- 1:nrow(ACC)
   if(nrow(ACC[foraging_idx,]) > 0){
     fft_acc <- {}
     try({
@@ -123,8 +130,10 @@ for(i in 1:length(files)){
                         z="z",
                         stats = "FFT")
       })
-
-    image(fft_acc[,3:((burstcount/2)+1)] %>% as.matrix)
+    png(file = paste0(path, "/accelerateR/fft_", bats[i], ".png"),
+        width = 800, height = 600)
+      image(fft_acc[,3:((burstcount/2)+1)] %>% as.matrix)
+    dev.off()
 
     freqs <- data.frame(time = ACC$time[foraging_idx] %>% unique(),
                         freq = NA, amp = NA,
@@ -151,10 +160,10 @@ for(i in 1:length(files)){
   sum_acc <- sum_data(ACC, time = "timestamp", x="x" ,
                       y="y" , z="z" , stats = "all",
                       behaviour = "behavior")
-  if(nrow(ACC[ACC$behavior == "commuting"|ACC$behavior == "foraging",]) > 0){
+  #if(nrow(ACC[ACC$behavior == "commuting"|ACC$behavior == "foraging",]) > 0){
     save(sum_acc, freqs, file = paste0(path, "accelerateR/", bats[i], ".robj"))
-  }
-  if(nrow(ACC[ACC$behavior == "commuting"|ACC$behavior == "foraging",]) == 0){
-    save(sum_acc, file = paste0(path, "accelerateR/", bats[i], "_no_freq.robj"))
-  }
+  #}
+  # if(nrow(ACC[ACC$behavior == "commuting"|ACC$behavior == "foraging",]) == 0){
+  #   save(sum_acc, file = paste0(path, "accelerateR/", bats[i], "_no_freq.robj"))
+  # }
 }

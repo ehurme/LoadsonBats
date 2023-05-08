@@ -85,7 +85,7 @@ for(i in 1:length(files)){
   }
   ACC <- count_test(ACC, burstcount)
 
-  fft_acc <- sum_data(ACC[1:14000,], time = "time",
+  fft_acc <- sum_data(ACC, time = "time",
            burstcount = burstcount,
            #x="x" , y="y" ,
            z="z" ,
@@ -96,19 +96,19 @@ for(i in 1:length(files)){
   ## fast fourier transform
   if(nrow(ACC[ACC$behavior == "commuting" |
               ACC$behavior == "foraging",]) > 0){
-    fft_acc <- sum_data(ACC[which(ACC$behavior == "commuting" |
-                                    ACC$behavior == "foraging"),], time = "time",
+    fft_acc <- sum_data(ACC, time = "time",
                         burstcount = burstcount,
                         #x="x" , y="y" ,
                         z="z" ,
                         stats = "FFT")
+    png(file = paste0(path, "/accelerateR/fft_", bats[i], ".png"),
+        width = 800, height = 600)
+      image(fft_acc[,3:((burstcount/2)+1)] %>% as.matrix)
+    dev.off()
 
-    image(fft_acc[,3:((burstcount/2)+1)] %>% as.matrix)
-    freqs <- data.frame(time = df$timestamp[df$behavior == "commuting"|
-                                              df$behavior == "foraging"],
+    freqs <- data.frame(time = df$timestamp,
                         freq = NA, amp = NA,
-                        behavior = df$behavior[df$behavior == "commuting"|
-                                                 df$behavior == "foraging"])
+                        behavior = df$behavior)
     j <- 5
     for(j in 1:nrow(fft_acc)){
       # fft_acc[i,3:133] %>% as.numeric() %>% plot

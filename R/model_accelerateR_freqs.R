@@ -13,7 +13,7 @@ paths <- c("../../../ownCloud/Firetail/Acerodonjubatus/tag_1521/",
 
 locations = c("Philippines","Thailand","Ghana", "Spain", "Panama", "Mexico", "Mexico") #, "Mexico")
 Frequency <- data.frame()
-i = 6
+i = 1
 for(i in 6:length(locations)){
   files <- list.files(paste0(paths[i], "accelerateR/"),
                       pattern = "*.robj", full.names = TRUE)
@@ -94,7 +94,6 @@ for(i in 6:length(locations)){
   # Get the sunset time for the given location and time
   dates <- as.Date(Freq$time) %>% unique()
   dates <-seq.Date(dates[1]-1, dates[length(dates)]+1, by = 1)
-    c(dates[1]-1, dates, dates[length(dates)]+1)
   sunset_times <- suncalc::getSunlightTimes(date = dates,
                                             lon = Freq$long[1], lat = Freq$lat[1],
                                             keep = c("sunset", "sunrise"))
@@ -124,6 +123,14 @@ summary(Frequency)
 table(Frequency$species)
 Frequency[which(Frequency$frequency %>% is.na),]
 
+ggplot(Frequency %>% filter(frequency > 1 & amp > 25), aes(x = frequency, y = amp))+
+  geom_point(alpha = 0.1)
+ggplot(Frequency %>% filter(frequency > 1 & amp > 25 & hours_since_sunset > -5),
+       aes(x = hours_since_sunset, y = frequency))+
+  geom_point(aes(cex = amp), alpha = 0.1)+
+  geom_smooth(method = "lm")+
+  ylim(c(2,4))+
+  facet_wrap(~date(time))
 
 ggplot(Frequency[Frequency$frequency > 1 &
                    Frequency$frequency < 20 &

@@ -1,7 +1,7 @@
 duration <- 8 # hours
-slope <- 0.01
-m1 <- 80
-f1 <- 6.8
+slope <- 0.001
+m1 <- 480
+f1 <- 3.2
 f2 <- f1+slope*duration
 
 m2 <- (f2/f1)^2*m1

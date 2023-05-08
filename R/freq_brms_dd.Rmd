@@ -14,7 +14,7 @@ p_load(data.table, janitor, accelerateR, brms, tidyverse, ggplot2)
 ## daily diary
 ### load data
 ```{r}
-load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Nlasiopterus.robj")
+
 load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Mvivesi.robj")
 load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Phastatus.robj")
 ```
@@ -110,6 +110,68 @@ save(fit_mv, Frequency, clean_freq,
 ```
 
 ## Nyctalus
+### load data
+```{r}
+load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Nlasiopterus_2018.robj")
+```
+
+###Summarise data
+```{r}
+Freq$day_bat_species <- paste(date(Freq$sunset), Freq$bat, Freq$species)
+day_bat_species <- table(Freq$day_bat_species)
+length(day_bat_species)
+hist(day_bat_species)
+```
+
+# filter by frequency and signal amplitude
+```{r}
+plot(Freq$frequency, Freq$amp, col = rgb(0,0,0,.1))
+
+hist(Freq$frequency, breaks = 100)
+hist(Freq$amp, breaks = 100)
+```
+
+
+```{r}
+library(dbscan)
+dbscan_res <- dbscan(Freq[1:50000,c("frequency", "amp")], eps = 0.2, minPts = 10)
+plot(Freq[,c("frequency", "amp")], col = dbscan_res$cluster + 1)
+```
+
+
+```{r}
+with(Freq[Freq$frequency > freq_threshold & Freq$amp > amp_threshold,], 
+     plot(frequency, amp, col = factor(behavior), cex = 0.1))
+
+```
+
+```{r}
+# Load the DBSCAN library
+library(dbscan)
+
+# Generate some sample data
+set.seed(123)
+x1 <- runif(1000, min = 0, max = 10)
+y1 <- rnorm(1000, mean = 0, sd = .1)
+x2 <- rnorm(500, mean = 0, sd = 0.1)
+y2 <- runif(500, min = 0, max = 3)
+x3 <- rnorm(300, mean = 0, sd = .1)
+y3 <- rnorm(300, mean = 0, sd = .1)
+x4 <- rnorm(200, mean = 8, sd = 0.5)
+y4 <- rnorm(200, mean = 2, sd = 0.5)
+data <- data.frame(x = c(x1, x2, x3, x4), y = c(y1, y2, y3, y4))
+
+# Perform clustering with DBSCAN
+dbscan_res <- dbscan(data, eps = 0.5, minPts = 30)
+
+# Plot the data with different colors for each cluster
+plot(data, col = dbscan_res$cluster + 1)
+
+
+
+```
+
+
 ```{r}
 fit_nl <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
             family = gaussian,

@@ -24,7 +24,7 @@ summary(Frequency)
 Frequency <- Frequency[Frequency$hours_since_sunset > 0 & 
                         Frequency$frequency > 1 &
                          Frequency$amp > 50 &
-                         Frequency$behavior == "commuting",] %>% na.omit()
+                         Frequency$behavior != "resting",] %>% na.omit()
 ```
 
 # make sure there are enough observations per bat night
@@ -67,35 +67,36 @@ clean_freq$day_bat_species[clean_freq$species=="Plylei"] %>% table %>% length
 
 # plot data
 ```{r}
-ggplot(clean_freq[clean_freq$hours_since_sunset > 0 &
-                 clean_freq$behavior == "commuting",], 
+ggplot(clean_freq[clean_freq$hours_since_sunset > 0,], 
        aes(x = round(hours_since_sunset,0), y = frequency, col = bat, group = bat))+
   geom_smooth(method = "lm")+ xlab("Hours since sunset")+ ylab("Dominant Wingbeat Frequency (Hz)")+
   facet_wrap(~species)+theme_bw()+theme(legend.position = "none")
-
-ggplot(clean_freq, 
-       aes(x = frequency, y = amp, col = bat, group = bat))+
-  geom_point(alpha = 0.1)+
-  # geom_smooth(method = "lm")+
-  facet_wrap(~species)+theme_bw()+theme(legend.position = "none")
-
-ggplot(clean_freq[clean_freq$hours_since_sunset > 0 &
-                 clean_freq$behavior == "commuting",], 
-       aes(x = frequency, y = amp, col = bat, group = bat))+
-  geom_smooth(method = "lm")+
-  facet_wrap(~species)+theme_bw()+theme(legend.position = "none")
+# 
+# ggplot(clean_freq, 
+#        aes(x = frequency, y = amp, col = bat, group = bat))+
+#   geom_point(alpha = 0.1)+
+#   # geom_smooth(method = "lm")+
+#   facet_wrap(~species)+theme_bw()+theme(legend.position = "none")
+# 
+# ggplot(clean_freq[clean_freq$hours_since_sunset > 0 &
+#                  clean_freq$behavior == "commuting",], 
+#        aes(x = frequency, y = amp, col = bat, group = bat))+
+#   geom_smooth(method = "lm")+
+#   facet_wrap(~species)+theme_bw()+theme(legend.position = "none")
 ```
 
 
-
+# run models
 ## Acerodon
 ```{r}
 clean_freq$day_bat_species[clean_freq$species=="Ajubatus"&
-                                clean_freq$behavior == "commuting" &
-                                clean_freq$frequency < 5] %>% table
+                                #clean_freq$behavior == "commuting" &
+                             clean_freq$frequency > 1 &   
+                             clean_freq$frequency < 5] %>% table
 ggplot(clean_freq[clean_freq$species=="Ajubatus"&
-                                clean_freq$behavior == "commuting" &
-                                clean_freq$frequency < 5,] %>% na.omit(),
+                                #clean_freq$behavior == "commuting" &
+                    clean_freq$frequency > 1 &            
+                    clean_freq$frequency < 5,] %>% na.omit(),
        aes(hours_since_sunset, frequency, col = bat))+ geom_point()+
   geom_smooth(method = "lm")+facet_wrap(~bat+date, scales = "free")
 
@@ -103,34 +104,33 @@ fit_aj <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
             family = gaussian,
             # prior = c(prior(normal(2.5, sd = 0.5)))
             data = clean_freq[clean_freq$species=="Ajubatus" &
-                                clean_freq$behavior == "commuting" &
+                                #clean_freq$behavior == "commuting" &
+                                clean_freq$frequency > 1 &
                                 clean_freq$frequency < 5,] %>% na.omit(), 
             cores = 20)
 summary(fit_aj)
 plot(fit_aj, ask = FALSE)
 ```
 
-### amplitude
+### amplitude frequency
 ```{r}
 ggplot(clean_freq[clean_freq$species=="Ajubatus"&
                                 clean_freq$behavior == "commuting",],
                                 #clean_freq$frequency < 5
-       aes(hours_since_sunset, amplitude, col = bat))+ geom_point()+
+       aes(hours_since_sunset, amp, col = bat))+ geom_point()+
   geom_smooth(method = "lm")#+facet_wrap(~bat+date, scales = "free")
-fit_amp_aj <- brm(amplitude ~ round(hours_since_sunset, 0) + (1+date|bat),
-            family = gaussian,
-            # prior = c(prior(normal(2.5, sd = 0.5)))
-            data = clean_freq[clean_freq$species=="Ajubatus" &
-                                clean_freq$behavior == "commuting" &
-                                clean_freq$frequency < 5,] %>% na.omit(), 
-            cores = 20)
-summary(fit_aj)
-plot(fit_aj, ask = FALSE)
 ```
 
 
 ## Eidolon
 ```{r}
+ggplot(clean_freq[clean_freq$species=="Ehelvum"&
+                                clean_freq$behavior == "commuting" &
+                    clean_freq$frequency > 3 &            
+                    clean_freq$frequency < 6,],
+       aes(hours_since_sunset, frequency, col = bat))+ geom_point()+
+  geom_smooth(method = "lm")+facet_wrap(~bat+date, scales = "free")
+
 fit_eh <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
             family = gaussian,
             # prior = c(prior(normal(2.5, sd = 0.5)))
@@ -145,7 +145,8 @@ plot(fit_eh, ask = FALSE)
 fit_pl <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
             family = gaussian,
             # prior = c(prior(normal(2.5, sd = 0.5)))
-            data = clean_freq[clean_freq$species=="Plylei",] %>% na.omit(), 
+            data = clean_freq[clean_freq$species=="Plylei" &
+                                clean_freq$behavior == 'commuting',] %>% na.omit(), 
             cores = 20)
 summary(fit_pl)
 plot(fit_pl, ask = FALSE)
