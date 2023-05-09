@@ -8,15 +8,16 @@ paths <- c("../../../ownCloud/Firetail/Acerodonjubatus/tag_1521/",
            "../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/",
            "../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/",
            "../../../ownCloud/Firetail/Myotisvivesi/Mviv17_60_model/",
-           "../../../ownCloud/Firetail/Myotisvivesi/Mviv18_07_model/") #,
-           # "../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/")
+           "../../../ownCloud/Firetail/Myotisvivesi/Mviv18_07_model/",
+           "../../../ownCloud/Firetail/Myotisvivesi/Mviv19_10_model/")
 
-locations = c("Philippines","Thailand","Ghana", "Spain", "Panama", "Mexico", "Mexico") #, "Mexico")
+locations = c("Philippines","Thailand","Ghana", "Spain", "Panama", "Mexico", "Mexico", "Mexico")
 Frequency <- data.frame()
 i = 1
-for(i in 6:length(locations)){
+for(i in 4:length(locations)){
   files <- list.files(paste0(paths[i], "accelerateR/"),
                       pattern = "*.robj", full.names = TRUE)
+  files <- files[!grepl(x = files, pattern = "no_freq")]
   bats <- sapply(strsplit(list.files(paste0(paths[i], "accelerateR/"),pattern = "*.robj", recursive = TRUE), split = ".robj"), "[", 1)
   Freq <- data.frame()
   j = 1
@@ -107,9 +108,14 @@ for(i in 6:length(locations)){
   hist(hour(Freq$time))
   hist(Freq$hours_since_sunset)
 
-  Frequency <- rbind(Frequency, Freq)
+  # Frequency <- rbind(Frequency, Freq)
   print(length(which(is.na(Frequency$freq))))
+  save(Freq, file = paste0("../../../Dropbox/MPI/Wingbeat/data/Frequency_",Freq$species[1], "_", year(Freq$time[1]), ".robj"))
 }
+
+# save(Frequency, file = "../../../Dropbox/MPI/Wingbeat/data/Frequency_allspecies.robj")
+
+
 Frequency$bat %>% table
 hist(Frequency$hours_since_sunset)
 Frequency[which(Frequency$hours_since_sunset < -2),] %>% View()

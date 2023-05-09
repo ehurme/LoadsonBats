@@ -4,94 +4,93 @@ output: html_document
 date: "2023-04-17"
 ---
 
+Can we model changes in wingbeat frequency with time since sunset?
+
+# load libraries
 ```{r}
 library(pacman)
 p_load(data.table, janitor, accelerateR, brms, tidyverse, ggplot2)
 ```
 
-
 # real data
-## daily diary
+## Phyllostomus hastatus
 ### load data
 ```{r}
-
-load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Mvivesi.robj")
-load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Phastatus.robj")
+load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Phastatus_2022.robj")
 ```
 
-# clean
+###Summarise data
 ```{r}
-summary(Frequency)
-
-Frequency <- Frequency[#Frequency$hours_since_sunset > 0 &
-                        Frequency$frequency > 1 &
-                         Frequency$frequency < 10 &
-                         # Frequency$amp > 1000 &
-                       Frequency$behavior == "commuting",]
+Freq$day_bat_species <- paste(date(Freq$sunset), Freq$bat, Freq$species)
+day_bat_species <- table(Freq$day_bat_species)
+length(day_bat_species)
+hist(day_bat_species)
 ```
 
-# make sure there are enough observations per bat night
+### filter by frequency and signal amplitude
 ```{r}
-Frequency$bat %>% table %>% length
-Frequency$day_bat_species <- paste(date(Frequency$sunset), Frequency$bat, Frequency$species)
-day_bat_species <- table(Frequency$day_bat_species)
+plot(Freq$frequency, Freq$amp, col = rgb(0,0,0,.1))
+freq_threshold <- 5
+amp_threshold <- 0.075
+abline(v = freq_threshold)
+abline(h = amp_threshold)
 
-keep <- day_bat_species[which(day_bat_species %>% as.numeric > 50)] %>% names()
+hist(Freq$frequency, breaks = 100)
+hist(Freq$amp, breaks = 100)
+```
 
-clean_freq <- Frequency[which(Frequency$day_bat_species %in% keep),]
+#### frequency and amplitude threshold
+```{r}
+with(Freq[Freq$frequency > freq_threshold & Freq$amp > amp_threshold,], 
+     plot(frequency, amp, col = factor(behavior), cex = 0.1))
 
-clean_freq$day_bat_species %>% table %>% length()
+clean_freq <- Freq[Freq$frequency > freq_threshold & Freq$amp > amp_threshold,]
+
 ```
 
 
+#### remove points before sunset
+```{r}
+hist(clean_freq$hours_since_sunset/24)
+clean_freq <- clean_freq[clean_freq$hours_since_sunset > 0,]
+
+```
+
+#### clean up nights with little acivity
 ```{r}
 clean_freq$date <- date(clean_freq$sunset)
-clean_freq %>% head
-summary(clean_freq)
-Frequency$amp %>% hist
+clean_freq$bat %>% table %>% length
 
+clean_freq$day_bat_species %>% table %>% length
+clean_freq$day_bat_species %>% table %>% hist(breaks = 20)
 
-ggplot(clean_freq[# clean_freq$behavior == "commuting" & 
-                    clean_freq$frequency > 5 &
-                                clean_freq$frequency < 8,], 
-       aes(x = hours_since_sunset,#hour(time), 
-           y = frequency, group = bat, col = bat))+
-  geom_point(alpha = 0.1)+
-  geom_smooth(method = "lm")+
-  facet_wrap(~bat)
-
-```
-## Phyllostomus hastatus
-```{r}
-
-Frequency <- Frequency[Frequency$hours_since_sunset > 0 &
-                        Frequency$frequency > 1 &
-                         Frequency$frequency < 10 &
-                         # Frequency$amp > 1000 &
-                       Frequency$behavior == "commuting",]
-
-
-Frequency$day_bat_species <- paste(date(Frequency$sunset), Frequency$bat, Frequency$species)
-day_bat_species <- table(Frequency$day_bat_species)
-
-keep <- day_bat_species[which(day_bat_species %>% as.numeric > 30)] %>% names()
-
-clean_freq <- Frequency[which(Frequency$day_bat_species %in% keep),]
+keep <- day_bat_species[which(day_bat_species %>% as.numeric > 50)] %>% names()
+clean_freq <- clean_freq[which(clean_freq$day_bat_species %in% keep),]
 
 clean_freq$bat %>% table %>% length
 clean_freq$day_bat_species %>% table %>% length()
 
+ggplot(clean_freq, aes(y = frequency, x = hours_since_sunset, group = day_bat_species))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~day_bat_species)
+```
 
-fit_ph <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
+
+### run model
+```{r}
+fit_ph <- brm(frequency ~ hours_since_sunset + (1+date|bat),
             family = gaussian,
             # prior = c(prior(normal(2.5, sd = 0.5)))
-            data = clean_freq[clean_freq$species=="Phastatus",] %>% na.omit(), 
+            data = clean_freq[clean_freq$species=="Nlasiopterus",] %>% na.omit(), 
             cores = 20)
 summary(fit_ph)
 plot(fit_ph, ask = FALSE)
-save(fit_ph, Frequency, clean_freq, 
-     file = "../../../../Dropbox/MPI/Wingbeat/data/Frequency_technosmart_commuting_hours_models.robj")
+
+save(fit_ph, Freq, clean_freq, freq_threshold, amp_threshold,
+     file = "../../../../Dropbox/MPI/Wingbeat/data/Frequency_Phastatus_model.robj")
 ```
+
 
 ## Myotis vivesi
 ```{r}
@@ -123,7 +122,7 @@ length(day_bat_species)
 hist(day_bat_species)
 ```
 
-# filter by frequency and signal amplitude
+### filter by frequency and signal amplitude
 ```{r}
 plot(Freq$frequency, Freq$amp, col = rgb(0,0,0,.1))
 
@@ -133,59 +132,68 @@ hist(Freq$amp, breaks = 100)
 
 
 ```{r}
-library(dbscan)
-dbscan_res <- dbscan(Freq[1:50000,c("frequency", "amp")], eps = 0.2, minPts = 10)
-plot(Freq[,c("frequency", "amp")], col = dbscan_res$cluster + 1)
+# library(dbscan)
+# dbscan_res <- dbscan(Freq[,c("frequency", "amp")], eps = 0.2, minPts = 50)
+# plot(Freq[,c("frequency", "amp")], col = dbscan_res$cluster + 1)
 ```
 
 
+#### frequency and amplitude threshold
 ```{r}
+freq_threshold <- 5
+amp_threshold <- 0.5
+
 with(Freq[Freq$frequency > freq_threshold & Freq$amp > amp_threshold,], 
      plot(frequency, amp, col = factor(behavior), cex = 0.1))
 
+clean_freq <- Freq[Freq$frequency > freq_threshold & Freq$amp > amp_threshold,]
+
 ```
 
+#### remove points before sunset
 ```{r}
-# Load the DBSCAN library
-library(dbscan)
-
-# Generate some sample data
-set.seed(123)
-x1 <- runif(1000, min = 0, max = 10)
-y1 <- rnorm(1000, mean = 0, sd = .1)
-x2 <- rnorm(500, mean = 0, sd = 0.1)
-y2 <- runif(500, min = 0, max = 3)
-x3 <- rnorm(300, mean = 0, sd = .1)
-y3 <- rnorm(300, mean = 0, sd = .1)
-x4 <- rnorm(200, mean = 8, sd = 0.5)
-y4 <- rnorm(200, mean = 2, sd = 0.5)
-data <- data.frame(x = c(x1, x2, x3, x4), y = c(y1, y2, y3, y4))
-
-# Perform clustering with DBSCAN
-dbscan_res <- dbscan(data, eps = 0.5, minPts = 30)
-
-# Plot the data with different colors for each cluster
-plot(data, col = dbscan_res$cluster + 1)
-
-
+clean_freq <- clean_freq[clean_freq$hours_since_sunset > 0,]
 
 ```
 
 
+#### clean up nights with little acivity
 ```{r}
-fit_nl <- brm(frequency ~ round(hours_since_sunset, 0) + (1+date|bat),
+clean_freq$date <- date(clean_freq$sunset)
+clean_freq$bat %>% table %>% length
+
+clean_freq$day_bat_species %>% table %>% length
+clean_freq$day_bat_species %>% table %>% hist(breaks = 20)
+
+keep <- day_bat_species[which(day_bat_species %>% as.numeric > 50)] %>% names()
+clean_freq <- clean_freq[which(clean_freq$day_bat_species %in% keep),]
+
+clean_freq$bat %>% table %>% length
+clean_freq$day_bat_species %>% table %>% length()
+
+ggplot(clean_freq, aes(y = frequency, x = hours_since_sunset, group = day_bat_species))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~day_bat_species)
+```
+
+
+
+### run model
+```{r}
+fit_nl <- brm(frequency ~ hours_since_sunset + (1+date|bat),
             family = gaussian,
             # prior = c(prior(normal(2.5, sd = 0.5)))
             data = clean_freq[clean_freq$species=="Nlasiopterus",] %>% na.omit(), 
             cores = 20)
 summary(fit_nl)
 plot(fit_nl, ask = FALSE)
+
+save(fit_nl, Freq, clean_freq, freq_threshold, amp_threshold,
+     file = "../../../../Dropbox/MPI/Wingbeat/data/Frequency_Nlasiopterus_model.robj")
 ```
 
 ```{r}
-save(fit_mv, Frequency, clean_freq, 
-     file = "../../../../Dropbox/MPI/Wingbeat/data/Frequency_vesper_commuting_hours_models.robj")
 
-load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_dd_commuting_hours_models.robj")
 ```
 
