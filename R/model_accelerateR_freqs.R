@@ -1,8 +1,8 @@
 # read accelerateR data
 
 library(pacman)
-p_load(data.table, janitor, accelerateR)
-paths <- c("../../../ownCloud/Firetail/Acerodonjubatus/tag_1521/",
+p_load(data.table, janitor, accelerateR, signal)
+paths <- c("../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Acerodonjubatus/tag_1521/",
            "../../../ownCloud/Firetail/Pteropuslylei/Model_tag_2268/",
            "../../../ownCloud/Firetail/Eidolonhelvum/Model_tag_2396/",
            "../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/",

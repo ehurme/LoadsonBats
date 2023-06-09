@@ -9,6 +9,93 @@ library(pacman)
 p_load(data.table, janitor, accelerateR, brms, tidyverse, ggplot2)
 ```
 
+# real data
+## Acerodon jubatus
+### load data
+```{r}
+load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Ajubatus_2010.robj")
+```
+
+###Summarise data
+```{r}
+Freq$day_bat_species <- paste(date(Freq$sunset), Freq$bat, Freq$species)
+day_bat_species <- table(Freq$day_bat_species)
+length(day_bat_species)
+hist(day_bat_species)
+```
+
+### filter by frequency and signal amplitude
+```{r}
+plot(Freq$frequency, Freq$amp, col = rgb(0,0,0,.1))
+freq_threshold_low <- 1.5
+freq_threshold_high <- 5
+amp_threshold <- 20
+abline(v = freq_threshold_low)
+abline(v = freq_threshold_high)
+abline(h = amp_threshold)
+
+# hist(Freq$frequency, breaks = 100)
+# hist(Freq$amp, breaks = 100)
+```
+
+#### frequency and amplitude threshold
+```{r}
+with(Freq[Freq$frequency > freq_threshold_low & Freq$frequency < freq_threshold_high & 
+            Freq$amp > amp_threshold,], 
+     plot(frequency, amp, col = factor(behavior), cex = 0.1))
+
+clean_freq <- Freq[Freq$frequency > freq_threshold_low & Freq$frequency < freq_threshold_high & 
+            Freq$amp > amp_threshold,]
+
+```
+
+
+#### remove points before sunset
+```{r}
+hist(clean_freq$hours_since_sunset/24)
+clean_freq <- clean_freq[clean_freq$hours_since_sunset > 0,]
+
+```
+
+#### clean up nights with little acivity
+```{r}
+clean_freq$date <- date(clean_freq$sunset)
+clean_freq$bat %>% table %>% length
+
+day_bat_species <- clean_freq$day_bat_species %>% table
+clean_freq$day_bat_species %>% table %>% length
+clean_freq$day_bat_species %>% table %>% hist(breaks = 20)
+
+keep <- day_bat_species[which(day_bat_species %>% as.numeric > 20)] %>% names()
+clean_freq <- clean_freq[which(clean_freq$day_bat_species %in% keep),]
+
+clean_freq$bat %>% table %>% length
+clean_freq$day_bat_species %>% table %>% length()
+
+ggplot(clean_freq, aes(y = frequency, x = hours_since_sunset, group = day_bat_species))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  facet_wrap(~day_bat_species)
+```
+
+
+### run model
+```{r}
+fit_aj <- brm(frequency ~ hours_since_sunset + (1+date|bat),
+            family = gaussian,
+            # prior = c(prior(normal(2.5, sd = 0.5)))
+            data = clean_freq %>% na.omit(), 
+            cores = 20)
+summary(fit_aj)
+plot(fit_aj, ask = FALSE)
+
+save(fit_aj, Freq, clean_freq, freq_threshold_low, freq_threshold_high, amp_threshold,
+     file = "../../../../Dropbox/MPI/Wingbeat/data/Frequency_Ajubatus_model.robj")
+
+# load("../../../../Dropbox/MPI/Wingbeat/data/Frequency_Phastatus_model.robj")
+```
+
+
 
 # real data
 ## eobs
