@@ -19,12 +19,21 @@ if(!dir.exists(paste0(path, "accelerateR"))){
 }
 
 i=1
-for(i in 2:length(files)){
+for(i in 1:length(files)){
   print(bats[i])
   df <- fread(paste0(path, files[i]))
   df$tag_local_identifier <- bats[i]
   idx <- grep(x = names(df), pattern = "time")[1]
   df$timestamp <- as.data.frame(df)[,idx]
+  dm <- {}
+  df_clean <- df[!duplicated(df$timestamp),]
+  dm <- move(x = df_clean$location_long, y = df_clean$location_lat,
+             time = df_clean$timestamp, data = df_clean,
+             proj = "+proj=longlat +datum=WGS84 +no_defs")
+  idx <- which(!is.na(df$location_lat))
+  df$speed <- NA
+  df$speed[idx] <- c(NA, speed(dm))
+  plot(df$timestamp, df$speed)
 
   if(year(df$timestamp[1]) > 2017){
     sampling_rate <- 50
@@ -94,6 +103,9 @@ for(i in 2:length(files)){
     time <- rep(ACC$timestamp[seq(1, length(ACC$behavior),
                                   by=burstcount)], each = burstcount)
 
+    ACC$burst <- rep(1:(nrow(ACC)/burstcount),
+                     each = burstcount)
+
     nrow(ACC)/burstcount
     length(new_behavior)/burstcount
     length(time)/burstcount
@@ -137,6 +149,8 @@ for(i in 2:length(files)){
 
     freqs <- data.frame(time = ACC$time[foraging_idx] %>% unique(),
                         freq = NA, amp = NA,
+                        wfreq = NA, wamp = NA,
+                        rms = NA, rms_filter = NA,
                         behavior = ACC$behavior[foraging_idx[seq(1, length(foraging_idx), by=burstcount)]])
     j <- 5
     for(j in 1:nrow(fft_acc)){
@@ -145,10 +159,41 @@ for(i in 2:length(files)){
       # abline(v = idx)
       freqs$freq[j] <- names(idx) %>% substr(3,nchar(names(idx)[1])) %>% as.numeric
       freqs$amp[j] <- max(fft_acc[j, 3:((burstcount/2)+1)])
+
+      # measure peak frequency and maneuverability
+      b1 <- ACC[ACC$burst == j,]
+      b1$z0 <- b1$z - mean(b1$z)
+      w <- tuneR::Wave(left = b1$z0, samp.rate = ACC$sample_frequency[1], bit = 16)
+      # plot(w)
+      try({
+        spec <- meanspec(w, f=ACC$sample_frequency[1], wl = nrow(b1), plot = FALSE)
+        peak <- fpeaks(spec, nmax = 4, plot = FALSE)
+        pidx <- which(peak[,1] > 0.0005)
+        midx <- which.max(peak[,2])
+        if(length(midx) > 0){
+          freqs$wfreq[j] <- peak[pidx[midx],1] * 1000
+          freqs$wamp[j] <- peak[pidx[midx],2]
+        }
+      })
+
+      wf <- ffilter(w, f= ACC$sample_frequency[1], from = 0, to = 1, bandpass = TRUE, wl = length(w)/5)
+      freqs$rms[j] <-  rms(b1$z0)
+      freqs$rms_filter[j] <- rms(wf*100)
+
+      freqs$behavior[j] <- df$behavior[which(freqs$time[j] == df$timestamp)]
     }
     freqs$duration_of_burst <- ACC$burst_size[1]/median(ACC$sample_frequency)
     # freqs$fft_resolution <- median(ACC$sample_frequency)/ACC$burst_size[1]
     freqs$frequency <- freqs$freq/freqs$duration_of_burst
+
+    png(file = paste0(path, "/accelerateR/freq_rms_", bats[i], ".png"),
+        width = 800, height = 600)
+    layout(rbind(1:2))
+    with(freqs, plot(frequency, rms, cex = amp/max(amp, na.rm = TRUE), col = behavior %>% factor))
+    with(freqs, plot(wfreq, rms, cex = wamp/max(wamp, na.rm = TRUE), col = behavior %>% factor))
+    dev.off()
+
+
     png(file = paste0(path, "/accelerateR/wingbeat_", bats[i], ".png"),
         width = 800, height = 600)
       with(freqs, plot(time, frequency, cex = 2*amp/max(amp, na.rm = TRUE),
