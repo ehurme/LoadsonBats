@@ -44,15 +44,72 @@ rms(b1$z0)
 rms(wf*100)
 
 
+load("./../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Acerodonjubatus/tag_1521/accelerateR/tag_1521.robj")
+files <- list.files(path = "./../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Acerodonjubatus/tag_1521/accelerateR/",
+                    pattern = ".robj", full.names = TRUE)
+bats <- list.files(path = "./../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Acerodonjubatus/tag_1521/accelerateR/",
+                   pattern = ".robj", full.names = FALSE) %>% substr(., 1, 8)
+files <- list.files(path = "./../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Pteropuslylei/Model_tag_2268/accelerateR/",
+                    pattern = ".robj", full.names = TRUE)
+bats <- list.files(path = "./../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Pteropuslylei/Model_tag_2268/accelerateR/",
+                   pattern = ".robj", full.names = FALSE) %>% substr(., 1, 8)
+
+Freqs <- data.table()
+for(i in 1:length(files)){
+  load(files[i])
+  freqs$bat <- bats[i]
+  Freqs <- rbind(Freqs, freqs, fill = TRUE)
+}
+
+with(Freqs, plot(frequency, amp, col = behavior %>% factor, cex = 0.5))
+with(Freqs, plot(frequency, rms, col = behavior %>% factor, cex = 0.5))
+with(Freqs, plot(frequency, rms_filter, col = behavior %>% factor, cex = 0.5))
+clean_freqs <- Freqs[Freqs$frequency > 2 & Freqs$frequency < 4 &
+                       Freqs$amp > 25 & Freqs$rms > 100 & Freqs$rms_filter < 200,]
+# with(clean_freqs, plot(frequency, col = behavior %>% factor))
+with(clean_freqs, plot(time, frequency, col = behavior %>% factor))
+super_clean_freqs <- clean_freqs[clean_freqs$rms_filter < 200 #& hour(clean_freqs$time) > 8
+                                 ,]
+
+super_clean_freqs$bat_date <-  paste(super_clean_freqs$bat, date(super_clean_freqs$time))
+bat_date <- table(super_clean_freqs$bat_date)
+keep <- bat_date[which(bat_date %>% as.numeric > 20)] %>% names()
+super_clean_freqs <- super_clean_freqs[which(super_clean_freqs$bat_date %in% keep),]
+table(super_clean_freqs$bat_date)
+
+with(super_clean_freqs, plot(time, frequency, col = behavior %>% factor))
+ggplot(super_clean_freqs, aes(hour(time), frequency, col = bat))+
+  geom_point(alpha = 0.1)+
+  geom_smooth(aes(group = bat_date),
+              alpha = 0.5, se = FALSE)+
+  geom_smooth(se = FALSE, lwd = 2, col = 1)+
+  theme_classic()
+
+ggsave(filename = "../../../Dropbox/MPI/Wingbeat/plots/Ajubatus_super_clean_freq.png")
+
+ggplot(super_clean_freqs, aes(hour(time), frequency, col = bat))+
+  geom_point(alpha = 0.1)+
+  geom_smooth(se = FALSE, lwd = 2, col = 1)+
+  facet_wrap(~bat_date)
 
 
 
+ggplot(super_clean_freqs, aes(hour(time), frequency, col = bat))+
+  geom_point(alpha = 0.1)+
+  geom_smooth(aes(group = bat_date),
+              alpha = 0.5, se = FALSE,
+              method = "lm")+
+  geom_smooth(se = FALSE, lwd = 2, col = 1, method = "lm")+
+  theme_classic()
+ggsave(filename = "../../../Dropbox/MPI/Wingbeat/plots/Ajubatus_super_clean_freq_linear.png")
 
+library(mgcv)
+fit <- gamm(frequency ~ s(hour(time)), data = super_clean_freqs,
+            random = list(bat_date = ~1))
 
-
-
-
-
+summary(fit$lme)
+summary(fit$gam)
+plot(fit$gam)
 
 
 

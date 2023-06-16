@@ -3,9 +3,9 @@
 library(pacman)
 p_load(data.table, janitor, accelerateR, signal)
 paths <- c("../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Acerodonjubatus/tag_1521/",
-           "../../../ownCloud/Firetail/Pteropuslylei/Model_tag_2268/",
-           "../../../ownCloud/Firetail/Eidolonhelvum/Model_tag_2396/",
-           "../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Pteropuslylei/Model_tag_2268/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Eidolonhelvum/Model_tag_2396/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/",
            "../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/",
            "../../../ownCloud/Firetail/Myotisvivesi/Mviv17_60_model/",
            "../../../ownCloud/Firetail/Myotisvivesi/Mviv18_07_model/",
@@ -13,11 +13,12 @@ paths <- c("../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Acero
 
 locations = c("Philippines","Thailand","Ghana", "Spain", "Panama", "Mexico", "Mexico", "Mexico")
 Frequency <- data.frame()
-i = 1
+i = 4
 for(i in 4:length(locations)){
   files <- list.files(paste0(paths[i], "accelerateR/"),
                       pattern = "*.robj", full.names = TRUE)
   files <- files[!grepl(x = files, pattern = "no_freq")]
+  files <- files[!grepl(x = files, pattern = "S1.robj")]
   bats <- sapply(strsplit(list.files(paste0(paths[i], "accelerateR/"),pattern = "*.robj", recursive = TRUE), split = ".robj"), "[", 1)
   Freq <- data.frame()
   j = 1
@@ -41,6 +42,11 @@ for(i in 4:length(locations)){
           idx <- which.min(abs(freqs$time[k] - sum_acc$time))
           freqs$amplitude <- sum_acc$rangez[idx]
         }
+      }
+
+      if(length(names(freqs)) != 8){
+        freqs$bat <- NA
+        freqs$amplitude <- NA
       }
       Freq <- rbind(Freq, freqs)
     }
