@@ -2,19 +2,19 @@
 
 library(pacman)
 p_load(data.table, janitor, accelerateR, signal)
-paths <- c("../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Acerodonjubatus/tag_1521/",
-           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Pteropuslylei/Model_tag_2268/",
-           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Eidolonhelvum/Model_tag_2396/",
-           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/",
+paths <- c("../../../ownCloud/Firetail/Acerodonjubatus/tag_1521/",
+           "../../../ownCloud/Firetail/Pteropuslylei/Model_tag_2268/",
+           "../../../ownCloud/Firetail/Eidolonhelvum/Model_tag_2396/",
+           "../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/",
            "../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/",
            "../../../ownCloud/Firetail/Myotisvivesi/Mviv17_60_model/",
            "../../../ownCloud/Firetail/Myotisvivesi/Mviv18_07_model/",
            "../../../ownCloud/Firetail/Myotisvivesi/Mviv19_10_model/")
 
 locations = c("Philippines","Thailand","Ghana", "Spain", "Panama", "Mexico", "Mexico", "Mexico")
-Frequency <- data.frame()
-i = 4
-for(i in 4:length(locations)){
+
+i = 5
+for(i in 1:length(locations)){
   files <- list.files(paste0(paths[i], "accelerateR/"),
                       pattern = "*.robj", full.names = TRUE)
   files <- files[!grepl(x = files, pattern = "no_freq")]
@@ -44,10 +44,10 @@ for(i in 4:length(locations)){
         }
       }
 
-      if(length(names(freqs)) != 8){
-        freqs$bat <- NA
-        freqs$amplitude <- NA
-      }
+      # if(length(names(freqs)) != 8){
+      #   freqs$bat <- NA
+      #   freqs$amplitude <- NA
+      # }
       Freq <- rbind(Freq, freqs)
     }
   }
@@ -100,12 +100,14 @@ for(i in 4:length(locations)){
 
   # Get the sunset time for the given location and time
   dates <- as.Date(Freq$time) %>% unique()
-  dates <-seq.Date(dates[1]-1, dates[length(dates)]+1, by = 1)
+  dates <- dates[order(dates)]
+  dates <-seq.Date(dates[1]-3, dates[length(dates)]+3, by = 1)
   sunset_times <- suncalc::getSunlightTimes(date = dates,
                                             lon = Freq$long[1], lat = Freq$lat[1],
                                             keep = c("sunset", "sunrise"))
   Freq$hours_since_sunset <- NA
-
+  # which(Freq$hours_since_sunset > 20)
+  # j = 2735
   for(j in 1:nrow(Freq)){
     sunset_idx <- which.min(abs(Freq$time[j] - sunset_times$sunset))
     Freq$sunset[j] <- sunset_times$sunset[sunset_idx] %>% as.character()
@@ -115,7 +117,7 @@ for(i in 4:length(locations)){
   hist(Freq$hours_since_sunset)
 
   # Frequency <- rbind(Frequency, Freq)
-  print(length(which(is.na(Frequency$freq))))
+  # print(length(which(is.na(Frequency$freq))))
   save(Freq, file = paste0("../../../Dropbox/MPI/Wingbeat/data/Frequency_",Freq$species[1], "_", year(Freq$time[1]), ".robj"))
 }
 
