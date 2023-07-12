@@ -11,6 +11,7 @@ bats <- sapply(strsplit(list.files(paste0(path, "accelerateR/"),pattern = "*.rob
 location = "Philippines"
 location = "Thailand"
 location = "Ghana"
+location = "Spain"
 
 Freq <- data.frame()
 i = 1
@@ -35,6 +36,9 @@ if(location == "Thailand"){
 if(location == "Ghana"){
   long <- -0.19
   lat <- 5.55
+}
+if(location == "Spain"){
+
 }
 
 Freq

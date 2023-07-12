@@ -1,0 +1,85 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-02-25"
+---
+
+
+```{r}
+library(pacman)
+p_load(data.table, magrittr, dplyr,
+         foreach, doParallel, R.utils, roll,
+         lubridate, suncalc,
+         seewave, Rwave, tuneR,
+         mclust, ggplot2)
+```
+
+```{r}
+saved <- list.files("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/Wingbeats/PCA/", pattern = "*.robj", recursive = TRUE, full.names = TRUE)
+W <- data.frame()
+i = 1
+for(i in 1:length(saved)){
+  load(saved[i])
+  bat <- substr(saved[i], 89, 95)
+  date <- substr(saved[i], 105, 114) %>% ymd
+  
+  w_stable$bat <- bat
+  w_stable$date <- date
+  w_stable$start <- db$time[df_stable$from]
+  w_stable$end <- db$time[df_stable$to]
+  w_stable$duration <- difftime(w_stable$end, w_stable$start, units = "mins")
+  na.omit(w_stable)
+  
+  w_stable$commute <- NA
+  idx <- order(w_stable$duration, decreasing = TRUE)[1:2]
+  if(any(w_stable$firetail[idx] == "c")){
+    w_stable$commute[idx] <- 1:2
+    W <- rbind(W, w_stable[idx,])
+  }
+}
+table(W$bat)
+```
+```{r}
+w_diff <- W %>% group_by(bat, date) %>% 
+  dplyr::summarise(diff_freq = peak_freq[2] - peak_freq[1],
+                   diff_amp = amplitude[2] - amplitude[1])
+hist(w_diff$diff_freq * 1000, breaks = 20)
+hist(w_diff$diff_amp, breaks = 20)
+```
+
+
+```{r}
+W$bat_date <- paste(W$bat, W$date)
+ggplot(W, aes(x = commute, y = peak_freq*1000))+
+  geom_violin(aes(group = commute), fill = "gray")+
+  geom_path(aes(group = bat_date), alpha = 0.1)+
+  theme_bw()
+```
+
+```{r}
+ggplot(W, aes(x = commute, y = amplitude))+
+  geom_violin(aes(group = commute), fill = "gray")+
+  geom_path(aes(group = bat_date), alpha = 0.1)+
+  theme_bw()
+```
+
+```{r}
+W$power <- (W$peak_freq*1000)^3*(W$amplitude)^3
+ggplot(W, aes(x = commute, y = power))+
+  geom_violin(aes(group = commute), fill = "gray")+
+  geom_path(aes(group = bat_date), alpha = 0.1)+
+  theme_bw()
+```
+
+
+```{r}
+p_load(lme4, survival)
+fit <- glmer((commute-1)~ peak_freq*amplitude+(1|bat),
+     data = W, family = binomial())
+summary(fit)
+
+with(na.omit(W), cor(peak_freq, amplitude)) # 0.47
+plot(W$peak_freq*1000, W$amplitude)
+
+```
+
