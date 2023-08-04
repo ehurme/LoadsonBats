@@ -1,0 +1,26 @@
+---
+title: "weatherstations"
+output: html_document
+date: "2023-02-26"
+---
+
+```{r}
+library(pacman)
+p_load(tidyverse,
+  weatherData)
+```
+
+# get weather from panama
+## bocas
+```{r}
+CareneroOne - IISLAC1
+FORECAST FOR ISLA CARENERO, PA
+```
+
+## changuinola
+```{r}
+ICHANG50  offline
+```
+
+
+
