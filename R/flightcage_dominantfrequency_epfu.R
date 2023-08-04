@@ -1,6 +1,6 @@
 library(pacman)
 
-p_load(data.table, seewave, tuneR, stringr, lubridate, ggplot2)
+p_load(data.table, seewave, tuneR, stringr, lubridate, ggplot2, spectral)
 
 path <- "../../../Dropbox/MPI/Wingbeat/Arizona/flightcage/"
 capture_sheet <- read.csv(paste0(path, "WeightExperiments_Az23.csv"))
@@ -19,7 +19,7 @@ fc_freq <- data.frame(file = files, date = dates, bat = bats, trial = trials,
                       sd = NA, median = NA,
                       frequency = NA, frequency2 = NA, peak_amp_diff = NA)
 
-i = 5
+i = 16
 for(i in 1:length(files)){
   try({
     fc_freq$bat_weight[i] <- capture_sheet$bat.weight[which(capture_sheet$bat == fc_freq$bat[i] &
@@ -42,14 +42,25 @@ for(i in 1:length(files)){
   acc_duration <- max(df$time)
 
   # plot data
-  # layout(1)
-  # with(df,#[1:1000,],#[9500:9700,],
-  #      plot(time/60, accX_mg/1000, type = "l",
-  #           xlab = "time (min)", ylab = "Acceleration (Gs)"))
-  # lines(df$time/60, df$accY_mg/1000, col = 2)
-  # lines(df$time/60, df$accZ_mg/1000, col = 3)
+  layout(1)
+  with(df,#[1:1000,],#[9500:9700,],
+       plot(time/60, accX_mg/1000, type = "l",
+            xlab = "time (min)", ylab = "Acceleration (Gs)"))
+  lines(df$time/60, df$accY_mg/1000, col = 2)
+  lines(df$time/60, df$accZ_mg/1000, col = 3)
+  write.csv(df, file = "example_flight_cage_fleatag.csv", row.names = FALSE)
+  # spectral function
+  y_filt<-filter.fft(df$accZ_mg,df$time,fc=12,BW=4,n=50, type = "b")
+  sf <- spec.fft(y = y_filt, x = df$time)
+  par(mar = c(4,4,4,4))
+  plot(sf, type = "l", xlim = c(8, 16), ylim = c(0,0.02),
+       xlab = "Frequency (Hz)", ylab = "Power Spectral Density")
 
 
+  summary(sf)
+  # idx <- amax(df$accZ_mg)
+  # idxx <- which(df$accZ_mg[idx] > 3.8)
+  # df$time[idx[idxx]] %>% diff %>% density(bw = 0.0001) %>% plot(xlim = c(0,5))
   # get dominant frequency from spectrogram
   # pl.pc <- prcomp(with(df, cbind(accX_mg, accY_mg, accZ_mg)), scale. = FALSE)
   # df$pc1 <- pl.pc$x[,1]

@@ -1,18 +1,20 @@
 ## function to get the dominant frequency from ACC data during commutes
+library(pacman)
+p_load(tidyverse, ggplot2, lubridate, janitor, seewave, tuneR, data.table, dplyr)
 
 # df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
 # df <- fread("./../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/individual_7CDA644-annotated-bursts-gps.csv")
 df <- fread("./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/individual_Mviv19_18-annotated-bursts-gps.csv")
 # calculate sunset and sunrise
 # add wavelet
-<<<<<<< HEAD
 save_path = "./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_18_model/Wingbeats/PCA/"
 tag_id <- "Mviv19_18"
-=======
+
 save_path = "./../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/Wingbeats/PCA/"
-df <- fread("./../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/tag_GPA-10_8147_S1-annotated-bursts-gps.csv") |> clean_names()
+df <- fread("./../../../ownCloud/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/tag_GPA-10_8147_S1-annotated-bursts-gps.csv") |>
+  clean_names()
 tag_id <- "8147"
->>>>>>> faae0a6d6a2e4195cbbac44fc86a21a5809e3aaa
+
 Burst = TRUE
 PCA = TRUE
 sampling_rate = 100
