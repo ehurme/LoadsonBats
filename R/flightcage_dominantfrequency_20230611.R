@@ -2,24 +2,29 @@ library(pacman)
 
 p_load(data.table, seewave, tuneR)
 
-path <- "../../FleaTagLogs/20230611/"
-folders <- list.dirs(path, full.names = TRUE)
+path25 <- "../../../Dropbox/MPI/Wingbeat/Arizona/flightcage/20230625/"
+folders25 <- list.dirs(path25, full.names = TRUE)
+path26 <- "../../../Dropbox/MPI/Wingbeat/Arizona/flightcage/20230626/"
+folders26 <- list.dirs(path26, full.names = TRUE)
+
+folders <- c(folders25[2:4], folders26[2:4])
 #folder <- folders[3:5]
 
 sampling_rate <- 54
 window_length = sampling_rate*8
 
 i = 3
-tag_weight <- c(NA, NA, 1.18, 0.74, 1.4)
-bat_weight <- c(NA, NA, 7.5, 7.54, 7.47)
+tag_weight <- c(1.25,  2.16,  2.11,  0.83,  0.83,  1.27)
+bat_weight <- c(12.45, 12.45, 12.75, 12.04, 11.41, 11.87)
+bat <- c(58, 58, 62, 58, 62, 62)
 
-fc_freq <- data.frame(bat_weight, tag_weight, total_weight = bat_weight+tag_weight,
+fc_freq <- data.frame(bat, bat_weight, tag_weight, total_weight = bat_weight+tag_weight,
                       frequency = NA, frequency2 = NA,
                       peak_amp_diff = NA)
 # fc_freq_int <- data.frame()
                       #rms = NA, rms_filter = NA)
-i = 3
-for(i in 3:length(folders)){
+i = 1
+for(i in 1:length(folders)){
   files <- list.files(folders[i], pattern = ".csv", full.names = TRUE)
   df <- fread(files[1])
 
@@ -31,12 +36,12 @@ for(i in 3:length(folders)){
   acc_duration <- max(df$time)
 
   # plot data
-  # layout(1)
-  # with(df,#[1:1000,],#[9500:9700,],
-  #      plot(time/60, accX_mg/1000, type = "l",
-  #           xlab = "time (min)", ylab = "Acceleration (Gs)"))
-  # lines(df$time/60, df$accY_mg/1000, col = 2)
-  # lines(df$time/60, df$accZ_mg/1000, col = 3)
+  layout(1)
+  with(df,#[1:1000,],#[9500:9700,],
+       plot(time/60, accX_mg/1000, type = "l",
+            xlab = "time (min)", ylab = "Acceleration (Gs)"))
+  lines(df$time/60, df$accY_mg/1000, col = 2)
+  lines(df$time/60, df$accZ_mg/1000, col = 3)
 
 
   # get dominant frequency from spectrogram
@@ -48,7 +53,7 @@ for(i in 3:length(folders)){
   # spectro(w, wl = window_length)
   #dev.off()
   flapping <- ffilter(w, f= sampling_rate, from = 10, to = 20, bandpass = TRUE, wl = window_length)
-  # spectro(flapping, f = sampling_rate)
+  spectro(flapping, f = sampling_rate)
   layout(1)
   spec <- meanspec(flapping, f=sampling_rate, wl = window_length*2, plot = TRUE)
   peak <- fpeaks(spec, nmax = 20, plot = TRUE)
@@ -110,7 +115,7 @@ for(i in 3:length(folders)){
 # }
 layout(1)
 fc_freq <- fc_freq[order(fc_freq$total_weight),]
-plot(fc_freq$total_weight, fc_freq$frequency,
+plot(fc_freq$total_weight, fc_freq$frequency, col = bat,
      cex = 2, pch = 16, type = "o", lwd = 1.5,
      ylab = "wingbeat frequency (Hz)", xlab = "total bat weight (g)")
 

@@ -6,15 +6,15 @@ paths <- c("../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Acero
            "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Pteropuslylei/Model_tag_2268/",
            "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Eidolonhelvum/Model_tag_2396/",
            "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/",
-           "../../../ownCloud/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/",
-           "../../../ownCloud/Firetail/Myotisvivesi/Mviv17_60_model/",
-           "../../../ownCloud/Firetail/Myotisvivesi/Mviv18_07_model/",
-           "../../../ownCloud/Firetail/Myotisvivesi/Mviv19_10_model/")
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Myotisvivesi/Mviv17_60_model/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Myotisvivesi/Mviv18_07_model/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Myotisvivesi/Mviv19_10_model/")
 
 locations = c("Philippines","Thailand","Ghana", "Spain", "Panama", "Mexico", "Mexico", "Mexico")
 Frequency <- data.frame()
 i = 4
-for(i in 4:length(locations)){
+for(i in 1:length(locations)){
   files <- list.files(paste0(paths[i], "accelerateR/"),
                       pattern = "*.robj", full.names = TRUE)
   files <- files[!grepl(x = files, pattern = "no_freq")]
