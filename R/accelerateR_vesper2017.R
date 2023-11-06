@@ -3,7 +3,7 @@
 # 11/4/23
 
 library(pacman)
-p_load(data.table, janitor, accelerateR, move)
+p_load(data.table, janitor, accelerateR, move, seewave, tuneR)
 path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv17_60_model/"
 path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv18_07_model/"
 path <- "./../../../ownCloud/Firetail/Myotisvivesi/Mviv19_10_model/"
@@ -19,7 +19,7 @@ if(!dir.exists(paste0(path, "accelerateR"))){
 }
 
 i=1
-for(i in 1:length(files)){
+for(i in 22:length(files)){
   print(bats[i])
   df <- fread(paste0(path, files[i]))
   df$tag_local_identifier <- bats[i]
@@ -153,6 +153,7 @@ for(i in 1:length(files)){
                         rms = NA, rms_filter = NA,
                         behavior = ACC$behavior[foraging_idx[seq(1, length(foraging_idx), by=burstcount)]])
     j <- 5
+
     for(j in 1:nrow(fft_acc)){
       # fft_acc[i,3:133] %>% as.numeric() %>% plot
       idx <- which.max(fft_acc[j,3:((burstcount/2) + 1)])
@@ -163,10 +164,10 @@ for(i in 1:length(files)){
       # measure peak frequency and maneuverability
       b1 <- ACC[ACC$burst == j,]
       b1$z0 <- b1$z - mean(b1$z)
-      w <- tuneR::Wave(left = b1$z0, samp.rate = ACC$sample_frequency[1], bit = 16)
+      w <- tuneR::Wave(left = b1$z0, samp.rate = sampling_rate, bit = 16)
       # plot(w)
       try({
-        spec <- meanspec(w, f=ACC$sample_frequency[1], wl = nrow(b1), plot = FALSE)
+        spec <- meanspec(w, f=sampling_rate, wl = nrow(b1), plot = FALSE)
         peak <- fpeaks(spec, nmax = 4, plot = FALSE)
         pidx <- which(peak[,1] > 0.0005)
         midx <- which.max(peak[,2])
@@ -176,13 +177,13 @@ for(i in 1:length(files)){
         }
       })
 
-      wf <- ffilter(w, f= ACC$sample_frequency[1], from = 0, to = 1, bandpass = TRUE, wl = length(w)/5)
+      wf <- ffilter(w, f= sampling_rate, from = 0, to = 1, bandpass = TRUE, wl = length(w)/5)
       freqs$rms[j] <-  rms(b1$z0)
       freqs$rms_filter[j] <- rms(wf*100)
 
       freqs$behavior[j] <- df$behavior[which(freqs$time[j] == df$timestamp)]
     }
-    freqs$duration_of_burst <- ACC$burst_size[1]/median(ACC$sample_frequency)
+    freqs$duration_of_burst <- ACC$burst_size[1]/sampling_rate
     # freqs$fft_resolution <- median(ACC$sample_frequency)/ACC$burst_size[1]
     freqs$frequency <- freqs$freq/freqs$duration_of_burst
 
