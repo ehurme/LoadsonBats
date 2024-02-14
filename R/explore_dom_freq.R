@@ -4,9 +4,17 @@ p_load(data.table, janitor, accelerateR, signal)
 load("../../../Dropbox/MPI/Wingbeat/data/Frequency_Ajubatus_2010.robj")
 load("../../../Dropbox/MPI/Wingbeat/data/Frequency_Plylei_2012.robj")
 
+Freq %>% names
+# freq - fft frequency
+# amp - fft amplitude
+# wfreq - wave frequency
+
+
 Freq$bat %>% table
 plot(Freq$frequency, Freq$amp, col = Freq$behavior %>% factor)
 plot(Freq$wamp, Freq$amp, col = Freq$behavior %>% factor)
+plot(Freq$amplitude, Freq$amp, col = Freq$behavior %>% factor)
+
 plot(Freq$rms, Freq$amplitude, col = Freq$behavior %>% factor)
 plot(Freq$rms_filter, Freq$frequency, col = Freq$behavior %>% factor)
 

@@ -2,15 +2,22 @@
 # Edward Hurme
 # 7/4/23
 
-
-# devtools::install_github("wanjarast/accelerateR")
-
 library(pacman)
-p_load(data.table, janitor, accelerateR, move, signal, tuneR, seewave)
+p_load(data.table, janitor, lubridate, tidyverse, dplyr,
+       accelerateR, move, # acc and gps analysis
+       signal, tuneR, seewave # spectrogram analysis
+       #lutz # look up timezones
+       )
+source("src/fft_peak_freq.R")
+source("src/get_day_or_night.R")
+
 path <- "./../../../ownCloud/Firetail/Acerodonjubatus/tag_1521/"
 path <- "./../../../ownCloud/Firetail/Pteropuslylei/Model_tag_2268/"
 path <- "../../../ownCloud/Firetail/Eidolonhelvum/Model_tag_2396/"
 
+sampling_rate = 18.74
+highpass = 5
+lowpass = 1
 files <- list.files(path, pattern = "*.csv")
 bats <- sapply(strsplit(files, split = "-"), '[', 1)
 if(!dir.exists(paste0(path, "accelerateR"))){
@@ -31,7 +38,18 @@ for(i in 1:length(files)){
   idx <- which(!is.na(df$location_lat))
   df$speed <- NA
   df$speed[idx] <- c(NA, speed(dm))
+  plot(df$location_long, df$location_lat, asp = 1)
+  points(median(df$location_long, na.rm = TRUE),
+         median(df$location_lat, na.rm = TRUE), col = 2, pch = 16)
   plot(df$timestamp, df$speed)
+
+  # Add a column to the data indicating day or night
+  df$day_or_night <- mapply(get_day_or_night, mean(df$location_lat, na.rm = TRUE),
+                            mean(df$location_long, na.rm = TRUE),
+                            df$timestamp)
+  df$behavior <- "resting"
+  df$behavior[which(df$`annotation-layer-commuting` != "")] <- "commuting"
+  df$behavior[which(df$`annotation-layer-foraging` != "")] <- "foraging"
 
   ACC <- {}
   ACC <- move_trans(data =  df[df$type == "acc",], timestamp = "timestamp", acc = "eobs_accelerations_raw",
@@ -42,85 +60,67 @@ for(i in 1:length(files)){
   burstcount = df$eobs_accelerations_raw[1] %>% strsplit(split = " ") %>% unlist %>% length/3
   count_test(ACC, burstcount)
 
-  df$behavior <- "resting"
-  df$behavior[which(df$`annotation-layer-commuting` != "")] <- "commuting"
-  df$behavior[which(df$`annotation-layer-foraging` != "")] <- "foraging"
+  # add behavior, time, and burst to ACC
 
+  ACC$daynight <- rep(df$day_or_night[df$type == "acc"],
+                      each = burstcount)
   ACC$behavior <- rep(df$behavior[df$type == "acc"],
                       each = burstcount)
-  table(ACC$behavior)
   ACC$burst <- rep(1:(nrow(ACC)/burstcount),
                       each = burstcount)
-  table(ACC$burst) %>% unique
 
   ## fast fourier transform
   if(nrow(ACC[ACC$behavior == "commuting" |
               ACC$behavior == "foraging",]) > 0){
-    fft_acc <- {}
-    ACC$time <- ACC$timestamp
-    fft_acc <- sum_data(ACC, time = "time",
-                        burstcount = burstcount,
-                        #x="x" , y="y" ,
-                        z="z" ,
-                        stats = "FFT")
+    bursts <- unique(ACC$burst)
+    freqs <- data.table()
 
-    png(file = paste0(path, "/accelerateR/fft_", bats[i], ".png"),
-        width = 800, height = 600)
-      image(fft_acc[,3:((burstcount/2)+1)] %>% as.matrix)
-    dev.off()
+    j = 1
+    for(j in 1:length(bursts)){
+      b <- ACC[ACC$burst == bursts[j],]
+      pc <- prcomp(x = b[,1:3])
+      b$pc <- pc$x[,1]
+      plot(b$pc, type = "l")
 
-    freqs <- data.frame(time = ACC$timestamp %>% unique,
-                        freq = NA, amp = NA,
-                        wfreq = NA, wamp = NA,
-                        rms = NA, rms_filter = NA,
-                        behavior = NA)
-    j <- 5
-    for(j in 1:nrow(freqs)){
-      # get frequency
-      idx <- which.max(fft_acc[j,3:((burstcount/2) + 1)])
-      # abline(v = idx)
-      freqs$freq[j] <- names(idx) %>% substr(3,nchar(names(idx)[1])) %>% as.numeric
-      freqs$amp[j] <- max(fft_acc[j, 3:((burstcount/2)+1)])
+      duration <- nrow(b) / sampling_rate
+        #difftime(max(b$timestamp), min(b$timestamp), units = "secs") %>% as.numeric()
 
-      # measure peak frequency and maneuverability
-      b1 <- ACC[ACC$burst == j,]
-      b1$z0 <- b1$z - mean(b1$z)
-      w <- tuneR::Wave(left = b1$z0, samp.rate = ACC$sample_frequency[1], bit = 16)
-      # plot(w)
-      try({
-        spec <- meanspec(w, f=ACC$sample_frequency[1], wl = nrow(b1), plot = FALSE)
-        peak <- fpeaks(spec, nmax = 4, plot = FALSE)
-        pidx <- which(peak[,1] > 0.0005)
-        midx <- which.max(peak[,2])
-        if(length(midx) > 0){
-          freqs$wfreq[j] <- peak[pidx[midx],1] * 1000
-          freqs$wamp[j] <- peak[pidx[midx],2]
-        }
-      })
-
-      wf <- ffilter(w, f= ACC$sample_frequency[1], from = 0, to = 1, bandpass = TRUE, wl = length(w)/5)
-      freqs$rms[j] <-  rms(b1$z0)
-      freqs$rms_filter[j] <- rms(wf*100)
-
-      freqs$behavior[j] <- df$behavior[which(freqs$time[j] == df$timestamp)]
+      df <- fft_peak_freq(data = b$pc,
+                          time = duration,
+                          highpass = highpass,
+                          lowpass = lowpass,
+                          sampling_rate = sampling_rate)
+      df$burst <- j
+      df$burst_start <- b$timestamp[1]
+      df$duration <- duration
+      df$behavior <- b$behavior[1]
+      freqs <- rbind(freqs, df)
     }
 
-    freqs$duration_of_burst <- ACC$burst_size[1]/ACC$sample_frequency[1]
-    freqs$frequency <- freqs$freq/freqs$duration_of_burst
+    # add flight numbers for long breaks in recordings
+    burst_diff <- as.numeric(difftime(freqs$burst_start[-1],
+                                      freqs$burst_start[-nrow(freqs)],
+                                      units = "hours"))
+    long_breaks <- which(abs(burst_diff) > 1) + 1
 
-    plot(freqs$frequency, freqs$wfreq)
-    plot(freqs$amp, freqs$wamp)
+    day_counter <- 1
+    for (i in 1:nrow(freqs)) {
+      if (i %in% long_breaks) {
+        day_counter <- day_counter + 1
+      }
+      freqs$day[i] <- day_counter
+    }
 
-    png(file = paste0(path, "/accelerateR/freq_rms_", bats[i], ".png"),
+    png(file = paste0(path, "/fft/freq_rms_", bats[i], ".png"),
         width = 800, height = 600)
     layout(rbind(1:2))
-      with(freqs, plot(frequency, rms, cex = amp/max(amp, na.rm = TRUE), col = behavior %>% factor))
+      with(freqs, plot(freq, rms, cex = amp/max(amp, na.rm = TRUE), col = behavior %>% factor))
       with(freqs, plot(wfreq, rms, cex = wamp/max(wamp, na.rm = TRUE), col = behavior %>% factor))
     dev.off()
 
     freqs$duration_of_burst <- ACC$burst_size[1]/ACC$sample_frequency[1]
 
-    png(file = paste0(path, "/accelerateR/wingbeat_", bats[i], ".png"),
+    png(file = paste0(path, "/fft/wingbeat_", bats[i], ".png"),
         width = 800, height = 600)
       with(freqs, plot(time, frequency, cex = amp/max(amp, na.rm = TRUE),
                      pch = 1, main = bats[i], col = behavior %>% factor))

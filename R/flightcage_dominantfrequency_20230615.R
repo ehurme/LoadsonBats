@@ -25,18 +25,44 @@ for(i in 1:length(folders)){
 
   # remove blank rows
   df <- df[!is.na(df$burstCount),]
+  burst_length <- table(df$burstCount) %>% median()
 
+  # add data by burst
+  max_burst <- as.numeric(df$burstCount[nrow(df)])
+  d <- data.frame(time = 1:((max_burst+1) * burst_length)/sampling_rate,
+                  burst = rep(0:max_burst, each = burst_length),
+                  x = NA, y = NA, z = NA)
+
+  bursts <- unique(df$burstCount) %>% as.numeric() %>% na.omit()
+  bursts <- bursts[bursts >= 0 & bursts <= max_burst]
+  for(i in 1:length(bursts)){
+    idx <- which(df$burstCount == bursts[i])
+    didx <- which(d$burst == bursts[i])
+    if(length(idx) != length(didx)){
+      d$x[didx[1:length(idx)]] <- df$accX_mg[idx] %>% as.numeric
+      d$y[didx[1:length(idx)]] <- df$accY_mg[idx] %>% as.numeric
+      d$z[didx[1:length(idx)]] <- df$accZ_mg[idx] %>% as.numeric
+    }
+    if(length(idx) == length(didx)){
+      d$x[didx] <- df$accX_mg[idx] %>% as.numeric
+      d$y[didx] <- df$accY_mg[idx] %>% as.numeric
+      d$z[didx] <- df$accZ_mg[idx] %>% as.numeric
+    }
+  }
+
+  df <- d
   # add tag time
   df$time <- (1:nrow(df))/sampling_rate
   acc_duration <- max(df$time)
 
   # plot data
-  # layout(1)
-  # with(df,#[1:1000,],#[9500:9700,],
-  #      plot(time/60, accX_mg/1000, type = "l",
-  #           xlab = "time (min)", ylab = "Acceleration (Gs)"))
-  # lines(df$time/60, df$accY_mg/1000, col = 2)
-  # lines(df$time/60, df$accZ_mg/1000, col = 3)
+  layout(1)
+  with(df,#[1:1000,],#[9500:9700,],
+       plot(time/60, x/1000, type = "l",
+            xlab = "time (min)", ylab = "Acceleration (Gs)"),
+       col = rgb(0,0,0,.01))
+  lines(df$time/60, df$y/1000, col = rgb(1,0,0,.3))
+  lines(df$time/60, df$z/1000, col = rgb(0,1,0,.4))
 
 
   # get dominant frequency from spectrogram
@@ -44,9 +70,9 @@ for(i in 1:length(folders)){
   # df$pc1 <- pl.pc$x[,1]
   # plot(df$time, df$pc1, type = "l")
 
-  df$z0 <- mean(df$accZ_mg) - df$accZ_mg
+  df$z0 <- mean(df$z) - df$z
 
-  w <- tuneR::Wave(left = df$accZ_mg, samp.rate = sampling_rate, bit = 16)
+  w <- tuneR::Wave(left = df$z0, samp.rate = sampling_rate, bit = 16)
   # w_pc <- tuneR::Wave(left = df$pc1, samp.rate = sampling_rate, bit = 16)
   # plot(w)
   # spec <- meanspec(w, wl = window_length)
