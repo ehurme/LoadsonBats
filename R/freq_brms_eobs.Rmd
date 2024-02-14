@@ -26,13 +26,15 @@ hist(day_bat_species)
 
 ### filter by frequency and signal amplitude
 ```{r}
-plot(Freq$frequency, Freq$amp, col = rgb(0,0,0,.1))
+plot(Freq$frequency, Freq$rms)
+
+#plot(Freq$frequency, Freq$amp, col = rgb(0,0,0,.1))
 freq_threshold_low <- 1.5
 freq_threshold_high <- 5
-amp_threshold <- 20
+rms_threshold <- 100
 abline(v = freq_threshold_low)
 abline(v = freq_threshold_high)
-abline(h = amp_threshold)
+abline(h = rms_threshold)
 
 # hist(Freq$frequency, breaks = 100)
 # hist(Freq$amp, breaks = 100)
@@ -41,11 +43,13 @@ abline(h = amp_threshold)
 #### frequency and amplitude threshold
 ```{r}
 with(Freq[Freq$frequency > freq_threshold_low & Freq$frequency < freq_threshold_high & 
-            Freq$amp > amp_threshold,], 
-     plot(frequency, amp, col = factor(behavior), cex = 0.1))
+            Freq$rms > rms_threshold,], 
+     plot(frequency, amp, col = factor(behavior), cex = 0.5))
 
 clean_freq <- Freq[Freq$frequency > freq_threshold_low & Freq$frequency < freq_threshold_high & 
-            Freq$amp > amp_threshold,]
+            Freq$rms > rms_threshold,]
+
+with(clean_freq, plot(frequency, rms_filter, col = behavior %>% factor))
 
 ```
 

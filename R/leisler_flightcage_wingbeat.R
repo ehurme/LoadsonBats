@@ -2,7 +2,11 @@ library(pacman)
 
 p_load(data.table, seewave, tuneR, stringr, lubridate, ggplot2)
 
+<<<<<<< HEAD
 path <- "./../../../Dropbox/MPI/Wingbeat/Belgium23/Nyctalus_leisleri_fleatag/27072023/L1_m_trial1"
+=======
+path <- "../../../../Dropbox/MPI/Wingbeat/Belgium23/Nyctalus_leisleri_fleatag/"
+>>>>>>> c689a07a67b6a5f6584f2c5ab5da081e850bec04
 capture_sheet <- read.csv(paste0(path, "WeightExperiments_Az23.csv"))
 
 files1 <- dir(path, pattern = ".csv", recursive = TRUE)
@@ -37,11 +41,19 @@ for(i in 1:length(files)){
 
   df <- fread(paste0(path, files[i]))
 
+<<<<<<< HEAD
   df <- fread("./../../../Dropbox/MPI/Wingbeat/Belgium23/Nyctalus_leisleri_fleatag/27072023/L1_m_trial1/ACC_L1_m_trial1_tag1.25_bat11.6_8G_105Hz.csv")
   df <- fread("./../../../Dropbox/MPI/Wingbeat/Belgium23/Nyctalus_leisleri_fleatag/27072023/L1_m_trial2/ACC_L1_m_trial2_tag0.76_bat12.47_8G_105Hz.csv")
   df <- fread("./../../../Dropbox/MPI/Wingbeat/Belgium23/Nyctalus_leisleri_fleatag/27072023/L1_m_trial3/ACC_L1_m_trial3_tag1.02_bat12.5_8G_105Hz.csv")
   df <- fread("./../../../Dropbox/MPI/Wingbeat/Belgium23/Nyctalus_leisleri_fleatag/28072023/bat1_f_trial1/ACC_bat1_f_trial1_tag1.00_bat13.44_8g_105Hz.csv")
   df <- fread("./../../../Dropbox/MPI/Wingbeat/Belgium23/Nyctalus_leisleri_fleatag/28072023/bat1_f_trial2/ACC_bat1_f_trial2_tag1.25_bat13.74_8g_105Hz.csv")
+=======
+  df <- fread("../../../../Dropbox/MPI/Wingbeat/Belgium23/Nyctalus_leisleri_fleatag/27072023/L1_m_trial1/ACC_L1_m_trial1_tag1.25_bat11.6_8G_105Hz.csv")
+  df <- fread("../../../../Dropbox/MPI/Wingbeat/Belgium23/Nyctalus_leisleri_fleatag/27072023/L1_m_trial2/ACC_L1_m_trial2_tag0.76_bat12.47_8G_105Hz.csv")
+  df <- fread("../../../../Dropbox/MPI/Wingbeat/Belgium23/Nyctalus_leisleri_fleatag/27072023/L1_m_trial3/ACC_L1_m_trial3_tag1.02_bat12.5_8G_105Hz.csv")
+  df <- fread("../../../../Dropbox/MPI/Wingbeat/Belgium23/Nyctalus_leisleri_fleatag/28072023/bat1_f_trial1/ACC_bat1_f_trial1_tag1.00_bat13.44_8g_105Hz.csv")
+  df <- fread("../../../../Dropbox/MPI/Wingbeat/Belgium23/Nyctalus_leisleri_fleatag/28072023/bat1_f_trial2/ACC_bat1_f_trial2_tag1.25_bat13.74_8g_105Hz.csv")
+>>>>>>> c689a07a67b6a5f6584f2c5ab5da081e850bec04
 
   # add data by burst
   max_burst <- as.numeric(df$burstCount[nrow(df)])

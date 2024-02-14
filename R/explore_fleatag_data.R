@@ -1,6 +1,7 @@
 # fleatag
+library(pacman)
 
-library(data.table)
+p_load(data.table, seewave, tuneR)
 
 # load data
 df <- fread("../../FleaTagLogs/20230607/Efuscus_bat1/20230607_Ef_bat1_tag3029_lowestweight.csv", header = T, fill = T) #13.25 min
@@ -13,14 +14,22 @@ df <- fread("../../FleaTagLogs/20230611/Mthy_bat1_trial2/Mthy_bat1_trial2_weight
 df <- fread("../../FleaTagLogs/20230611/Mthy_bat1_trial3/ACC_20230611_Mthy_bat1_trial3.csv", header = T, fill = T) # 10.3 min
 df <- fread("../../FleaTagLogs/20230611/Mthy_bat1_trial4/ACC_20230611_Mthy_bat1_trial4.csv", header = T, fill = T) # 10.3 min
 
+df <- fread("../../../Dropbox/MPI/Wingbeat/Arizona/flightcage/20230614/", header = T, fill = T) # 10.3 min
+
+df <- fread("../../../Dropbox/MPI/Wingbeat/Arizona/flightcage/20230618/Efus_bat1_trial2/ACC_20230618_Efus_bat1_trial2.csv", header = T, fill = T) # 10.3 min
+
+df <- fread("../../../Dropbox/MPI/Wingbeat/Arizona/flightcage/20230622/Mthy_bat54_trial2/ACC_20230622_Mthy_bat54.csv", header = T, fill = T)
+df <- fread("../../../Dropbox/MPI/Wingbeat/Arizona/flightcage/20230623/Mthy_bat54_trial4/ACC_Mthy_bat54_trial4.csv", header = T, fill = T)
 # remove blank rows
 df <- df[!is.na(df$burstCount),]
 
 # df1 <- df1[!is.na(df1$burstCount),]
 # df2 <- df2[!is.na(df2$burstCount),]
 
+sampling_rate <- 54
+
 # add tag time
-df$time <- (1:nrow(df))/54
+df$time <- (1:nrow(df))/sampling_rate
 max(df$time)/60
 
 # df1$time <- (1:nrow(df1))/54
@@ -28,7 +37,7 @@ max(df$time)/60
 
 dev.off()
 
-plot(df$ColorSensRed_cnt)
+
 plot(df$time, df$ColorSensIR_cnt)
 
 
@@ -39,20 +48,24 @@ lines(df$time/60, df$accY_mg, col = 2)
 lines(df$time/60, df$accZ_mg, col = 3)
 
 
-sampling_rate <- 54
+
 w <- tuneR::Wave(left = df$accZ_mg, samp.rate = sampling_rate, bit = 16)
+wl <- round(length(w)/20, -1)
 duration(w)
 plot(w)
-spec <- meanspec(w, wl = length(w)/20)
+spec <- meanspec(w, wl)
 fpeaks(spec, nmax = 10)
-spectro(w, wl = round(length(w)/200, -1))
+spectro(w, wl)
 dev.off()
-flapping <- ffilter(w, f= sampling_rate, from = 10, to = 20, bandpass = TRUE, wl = length(w)/5)
+
+flapping <- ffilter(w, f= sampling_rate, from = 7, to = 20, bandpass = TRUE,
+                    wl = wl)
 spectro(flapping, f = sampling_rate)
-spec <- meanspec(flapping, f = sampling_rate, wl = length(w)/20)
+layout(1)
+spec <- meanspec(flapping, f = sampling_rate, wl)
 
-
-wf <- ffilter(w, f= sampling_rate, from = 0, to = 2, bandpass = TRUE, wl = length(w)/5)
+wf <- {}
+wf <- ffilter(w, f= sampling_rate, from = 0, to = 2, bandpass = TRUE, wl)
 spectro(wf, f = sampling_rate)
 layout(1)
 

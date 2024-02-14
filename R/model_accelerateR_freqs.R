@@ -1,6 +1,57 @@
 # read accelerateR data
 
 library(pacman)
+<<<<<<< HEAD
+p_load(data.table, janitor, accelerateR, signal)
+paths <- c("../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Acerodonjubatus/tag_1521/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Pteropuslylei/Model_tag_2268/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Eidolonhelvum/Model_tag_2396/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Nyctaluslasiopterus/GPA-10_8147_S1/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Phyllostomushastatus/Model_tag_7CE02AF_main/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Myotisvivesi/Mviv17_60_model/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Myotisvivesi/Mviv18_07_model/",
+           "../../../ownCloud - ehurme@ab.mpg.de@owncloud.gwdg.de/Firetail/Myotisvivesi/Mviv19_10_model/")
+
+locations = c("Philippines","Thailand","Ghana", "Spain", "Panama", "Mexico", "Mexico", "Mexico")
+Frequency <- data.frame()
+i = 4
+for(i in 1:length(locations)){
+  files <- list.files(paste0(paths[i], "accelerateR/"),
+                      pattern = "*.robj", full.names = TRUE)
+  files <- files[!grepl(x = files, pattern = "no_freq")]
+  files <- files[!grepl(x = files, pattern = "S1.robj")]
+  bats <- sapply(strsplit(list.files(paste0(paths[i], "accelerateR/"),pattern = "*.robj", recursive = TRUE), split = ".robj"), "[", 1)
+  Freq <- data.frame()
+  j = 1
+  for(j in 1:length(files)){
+    freqs <- data.frame()
+    load(files[j])
+    print(files[j])
+    freqs <- na.omit(freqs)
+    plot(freqs$time, freqs$frequency, main = paste0(bats[j], " ", freqs$time[1]),
+         col = factor(freqs$behavior), pch = 16)
+    if(nrow(freqs) > 0){
+      freqs$bat <- bats[j]
+      idx <- which(sum_acc$time %in% freqs$time)
+      freqs$amplitude <- NA
+      if(length(idx) == nrow(freqs)){
+        freqs$amplitude <- sum_acc$rangez[idx]
+      }
+      if(length(idx) != nrow(freqs)){
+        k = 1
+        for(k in 1:nrow(freqs)){
+          idx <- which.min(abs(freqs$time[k] - sum_acc$time))
+          freqs$amplitude <- sum_acc$rangez[idx]
+        }
+      }
+
+      if(length(names(freqs)) != 8){
+        freqs$bat <- NA
+        freqs$amplitude <- NA
+      }
+      Freq <- rbind(Freq, freqs)
+    }
+=======
 p_load(data.table, janitor, accelerateR, move)
 path <- "../../../ownCloud/Firetail/Acerodonjubatus/tag_1521/"
 path <- "../../../ownCloud/Firetail/Pteropuslylei/Model_tag_2268/"
@@ -21,6 +72,7 @@ for(i in 1:length(files)){
   if(nrow(freqs) > 0){
     freqs$bat <- bats[i]
     Freq <- rbind(Freq, freqs)
+>>>>>>> eb72c51c7d12df6004711475bf3be2b3540a89cd
   }
 }
 

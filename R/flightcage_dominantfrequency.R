@@ -4,7 +4,7 @@ p_load(data.table, seewave, tuneR)
 
 path <- "../../FleaTagLogs/20230611/"
 folders <- list.dirs(path, full.names = TRUE)
-folder <- folders[3:5]
+#folder <- folders[3:5]
 
 sampling_rate <- 54
 window_length = sampling_rate*8
@@ -18,8 +18,8 @@ fc_freq <- data.frame(bat_weight, tag_weight, total_weight = bat_weight+tag_weig
                       peak_amp_diff = NA)
 # fc_freq_int <- data.frame()
                       #rms = NA, rms_filter = NA)
-i = 1
-for(i in 2:length(folders)){
+i = 3
+for(i in 3:length(folders)){
   files <- list.files(folders[i], pattern = ".csv", full.names = TRUE)
   df <- fread(files[1])
 
@@ -48,9 +48,9 @@ for(i in 2:length(folders)){
   # spectro(w, wl = window_length)
   #dev.off()
   flapping <- ffilter(w, f= sampling_rate, from = 10, to = 20, bandpass = TRUE, wl = window_length)
-  spectro(flapping, f = sampling_rate)
+  # spectro(flapping, f = sampling_rate)
   layout(1)
-  spec <- meanspec(flapping, f=sampling_rate, wl = window_length*2, plot = FALSE)
+  spec <- meanspec(flapping, f=sampling_rate, wl = window_length*2, plot = TRUE)
   peak <- fpeaks(spec, nmax = 20, plot = TRUE)
   peak_order <- peak[order(peak[,2], decreasing = TRUE),]
 
